@@ -112,3 +112,37 @@ docker run --rm -v "$PWD/infrastructure/docker/nginx.conf:/etc/nginx/conf.d/defa
   nginx:1.27-alpine nginx -t
 docker run --rm -v "$PWD/infrastructure/docker/web-nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
   nginx:1.27-alpine nginx -t
+```
+
+---
+
+## 6. Permanent operational rule — Composio MCP file writes
+
+**Status: PERMANENT. Applies to every agent and every future phase (P0…P6). Do not remove.**
+
+### 6.1 Never use `encoding: "base64"` with `GITHUB_CREATE_A_BLOB`
+
+- **NEVER** call `GITHUB_CREATE_A_BLOB` (or any Composio MCP GitHub write tool) with
+  `encoding: "base64"`. **UTF-8 only** — pass the file body as plain UTF-8 text and let
+  the tool/API do the encoding.
+- Reason: the base64 path through Composio MCP has produced corrupted blobs and
+  `403`/`422` responses. UTF-8 is the only supported write path.
+- For whole-file writes prefer `GITHUB_CREATE_OR_UPDATE_FILE_CONTENTS` with plain-text
+  `content`; use `GITHUB_CREATE_A_BLOB` only when a raw blob is genuinely required, and
+  then still with UTF-8 content.
+
+### 6.2 Two 403s = stop, hand off an artifact bundle
+
+- If Composio returns **`403` twice** for the same operation, **STOP retrying
+  immediately**. Do not loop, do not vary the payload hoping it passes.
+- Instead, **hand off an artifact bundle**: publish the intended files with
+  `upload_file` (permanent `/sites/` or `/files/` URL) and post the bundle + the exact
+  target path/branch/commit message to the group so the integrator (Agent 5) can land
+  it through the GitHub API.
+- Rationale: repeated 403s indicate a permission/token problem, not a transient error;
+  retrying burns the run and can never succeed.
+
+### 6.3 Verification after any MCP write
+
+- After a write, re-read the file (`GITHUB_GET_REPOSITORY_CONTENT`) and confirm the
+  content and byte size match what was intended. A silent truncation is a failure.
