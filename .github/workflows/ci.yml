@@ -160,6 +160,10 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+          
+      - name: Restore backend (for format check)
+        if: steps.detect.outputs.backend == 'true'
+        run: dotnet restore backend/TelegramCrm.sln
 
       - name: dotnet format (verify only)
         if: steps.detect.outputs.backend == 'true'
