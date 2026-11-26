@@ -32,6 +32,8 @@ FROM nginx:1.27-alpine AS final
 
 # SPA-aware nginx config (history fallback + long-lived asset caching)
 COPY infrastructure/docker/web-nginx.conf /etc/nginx/conf.d/default.conf
+# Shared security headers, included by every location block in web-nginx.conf
+COPY infrastructure/docker/security-headers.conf /etc/nginx/conf.d/security-headers.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
