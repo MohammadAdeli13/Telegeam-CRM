@@ -1,9 +1,4 @@
 
----
-
-## ۲. `.github/workflows/ci.yml`
-
-```yaml
 name: CI
 
 # Telegram CRM — continuous integration.
