@@ -1,0 +1,59 @@
+# =============================================================================
+# Telegram CRM — Docker build context exclusions (F-12)
+#
+# The build context is the repository root (see infrastructure/docker-compose.yml).
+# Keep it small and free of secrets/artifacts so image builds are fast and no
+# local state leaks into an image layer.
+# =============================================================================
+
+# --- VCS / editor -----------------------------------------------------------
+.git
+.gitignore
+.gitattributes
+.github
+.vscode
+.idea
+*.swp
+*~
+
+# --- Secrets & local env ----------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+secrets/
+
+# --- Node / frontend --------------------------------------------------------
+node_modules
+**/node_modules
+frontend/dist
+frontend/.vite
+frontend/coverage
+frontend/playwright-report
+frontend/test-results
+.pnpm-store
+**/.pnpm-store
+
+# --- .NET -------------------------------------------------------------------
+**/bin
+**/obj
+**/TestResults
+artifacts
+*.user
+*.suo
+
+# --- Docs / non-runtime -----------------------------------------------------
+docs
+contracts
+README.md
+*.md
+!frontend/README.md
+
+# --- OS / misc --------------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.log
+tmp
+temp
