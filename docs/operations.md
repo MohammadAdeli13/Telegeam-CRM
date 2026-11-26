@@ -1,2 +1,114 @@
-IyBPcGVyYXRpb25zIOKAlCBDSSwgc2VjcmV0cywgZGVwbG95bWVudAoKT3duZXI6ICoqQWdlbnQgNSoqIChEZXZPcHMgJiBHaXRIdWIgUmVwb3NpdG9yeSBFbmdpbmVlcikuClByb2R1Y3QgLyBhcmNoaXRlY3R1cmUgZG9jcyBsaXZlIGluIGBkb2NzL2FyY2hpdGVjdHVyZS9gIGFuZCBgZG9jcy9kZWNpc2lvbnMvYCAoQWdlbnQgMSkuCgotLS0KCiMjIDEuIENJIGpvYiBtYXRyaXgKCmAuZ2l0aHViL3dvcmtmbG93cy9jaS55bWxgIHJ1bnMgb24gKipldmVyeSBwdXNoKiogKGFsbCBicmFuY2hlcykgYW5kIG9uICoqZXZlcnkgcHVsbApyZXF1ZXN0IHRhcmdldGluZyBgbWFpbmAqKi4gQSBgd29ya2Zsb3dfZGlzcGF0Y2hgIHRyaWdnZXIgaXMgYXZhaWxhYmxlIGZvciBtYW51YWwgcnVucy4KU3VwZXJzZWRlZCBydW5zIG9uIHRoZSBzYW1lIHJlZiBhcmUgY2FuY2VsbGVkIChgY29uY3VycmVuY3kuY2FuY2VsLWluLXByb2dyZXNzYCkuCgp8IEpvYiB8IFN0ZXBzIHwgU2tpcHMgd2hlbiB8CnwtLS18LS0tfC0tLXwKfCBgYmFja2VuZC1idWlsZGAgfCBgZG90bmV0IHJlc3RvcmVgIOKGkiBgYnVpbGQgLWMgUmVsZWFzZWAg4oaSIGB0ZXN0YCBvbiBgYmFja2VuZC9UZWxlZ3JhbUNybS5zbG5gOyB1cGxvYWRzIGB0ZXN0LXJlc3VsdHMudHJ4YCB8IGBiYWNrZW5kL1RlbGVncmFtQ3JtLnNsbmAgYWJzZW50IHwKfCBgZnJvbnRlbmQtYnVpbGRgIHwgYHBucG0gaW5zdGFsbCAtLWZyb3plbi1sb2NrZmlsZWAg4oaSIGBwbnBtIHR5cGVjaGVja2Ag4oaSIGBwbnBtIGJ1aWxkYCB8IGBmcm9udGVuZC9wYWNrYWdlLmpzb25gIGFic2VudCB8CnwgYGxpbnRgIHwgYGRvdG5ldCBmb3JtYXQgLS12ZXJpZnktbm8tY2hhbmdlc2AgKyBgcG5wbSBsaW50YCB8IG5laXRoZXIgcHJvamVjdCBwcmVzZW50IHwKfCBgY29udHJhY3QtY2hlY2tgIHwgcmVnZW5lcmF0ZSBgZnJvbnRlbmQvc3JjL3R5cGVzL2FwaS5kLnRzYCBmcm9tIGBjb250cmFjdHMvb3BlbmFwaS5qc29uYCwgZmFpbCBvbiBkcmlmdCB8IGNvbnRyYWN0IG9yIGZyb250ZW5kIGFic2VudCB8CnwgYGNvbXBvc2UtY29uZmlnYCB8IGBkb2NrZXIgY29tcG9zZSBjb25maWcgLS1xdWlldGAgKyBgbmdpbnggLXRgIG9uIGJvdGggbmdpbnggY29uZmlncyB8IG5ldmVyIChhbHdheXMgcnVucykgfAp8IGBjaS1zdGF0dXNgIHwgZ2F0ZSBqb2I7IGZhaWxzIGlmIGFueSBqb2IgYWJvdmUgZGlkIG5vdCBzdWNjZWVkIHwgbmV2ZXIgfAoKKipQMCBiZWhhdmlvdXIuKiogV2hpbGUgYSBwcm9qZWN0IGRvZXMgbm90IGV4aXN0IHlldCwgaXRzIGpvYiBleGl0cyB3aXRoIGEgYDo6bm90aWNlYAppbnN0ZWFkIG9mIGZhaWxpbmcsIHNvIGBtYWluYCBzdGF5cyBncmVlbiBmcm9tIHRoZSBmaXJzdCBjb21taXQuIFRoZSBndWFyZHMgZGlzYXBwZWFyCm5hdHVyYWxseSBvbmNlIFAxL1AzIGxhbmQgdGhlIHJlYWwgcHJvamVjdHMuCgoqKk1lcmdlIHBvbGljeS4qKiBNZXJnZSBvbmx5IHdoZW4gYGNpLXN0YXR1c2AgaXMgZ3JlZW4uIGBjaS1zdGF0dXNgIGlzIHRoZSBzaW5nbGUKcmVxdWlyZWQgc3RhdHVzIGNoZWNrIGZvciBicmFuY2ggcHJvdGVjdGlvbi4KCiMjIyBXaGF0IGBjb21wb3NlLWNvbmZpZ2AgZG9lcyBhbmQgZG9lcyBub3QgcHJvdmUKClRoZSBgbmdpbnggLXRgIHN0ZXAgcnVucyBlYWNoIGNvbmZpZyBpbnNpZGUgYSB0aHJvd2F3YXkgYG5naW54OjEuMjctYWxwaW5lYCBjb250YWluZXIKd2l0aCBgLS1hZGQtaG9zdCBhcGk6MTI3LjAuMC4xIC0tYWRkLWhvc3Qgd2ViOjEyNy4wLjAuMWAuIFRob3NlIGhvc3QgZW50cmllcyBleGlzdAoqKm9ubHkgc28gdGhhdCBuZ2lueCBjYW4gcmVzb2x2ZSB0aGUgdXBzdHJlYW0gbmFtZXMgYXQgcGFyc2UgdGltZSoqLgoKPiAqKlRoaXMgaXMgYSBzeW50YXggY2hlY2ssIG5vdCBhIGNvbm5lY3Rpdml0eSBjaGVjay4qKiBJdCBkb2VzIG5vdCB2ZXJpZnkgdGhhdCB0aGUKPiBgYXBpYCBvciBgd2ViYCBzZXJ2aWNlcyBhcmUgcmVhY2hhYmxlLCB0aGF0IHBvcnRzIG1hdGNoLCB0aGF0IHRoZSByZXZlcnNlIHByb3h5Cj4gYWN0dWFsbHkgZm9yd2FyZHMgdHJhZmZpYywgb3IgdGhhdCBUTFMgdGVybWluYXRlcyBjb3JyZWN0bHkuIFJlYWwgZW5kLXRvLWVuZAo+IHZlcmlmaWNhdGlvbiByZXF1aXJlcyBgZG9ja2VyIGNvbXBvc2UgdXBgIG9uIGEgaG9zdCB3aXRoIERvY2tlciBhbmQgaXMgb3V0IG9mIHNjb3BlCj4gZm9yIENJLgoKLS0tCgojIyAyLiBHaXRIdWIgU2VjcmV0cwoKQ29uZmlndXJlIHVuZGVyICoqU2V0dGluZ3Mg4oaSIFNlY3JldHMgYW5kIHZhcmlhYmxlcyDihpIgQWN0aW9ucyoqLiBDSSBpdHNlbGYgbmVlZHMgbm9uZSBvZgp0aGVtOyB0aGV5IGFyZSBpbmplY3RlZCBhdCBkZXBsb3kgdGltZSBvbmx5LgoKfCBTZWNyZXQgfCBVc2VkIGJ5IHwgRGVzY3JpcHRpb24gfAp8LS0tfC0tLXwtLS18CnwgYFBPU1RHUkVTX1BBU1NXT1JEYCB8IGRlcGxveSB8IGRhdGFiYXNlIHBhc3N3b3JkIHwKfCBgVEVMRUdSQU1fQk9UX1RPS0VOYCB8IGRlcGxveSB8IGJvdCB0b2tlbiBmcm9tIEBCb3RGYXRoZXIgfAp8IGBKV1RfU0VDUkVUYCB8IGRlcGxveSB8IOKJpTMyIHJhbmRvbSBjaGFycyAoYG9wZW5zc2wgcmFuZCAtYmFzZTY0IDQ4YCkgfAoKUnVsZXM6CgotIE5ldmVyIGVjaG8gYSBzZWNyZXQgaW4gYSB3b3JrZmxvdyBsb2cuCi0gTmV2ZXIgd3JpdGUgYSBzZWNyZXQgaW50byBhIGNvbW1pdHRlZCBmaWxlLgotIGAuZW52LmV4YW1wbGVgIGhvbGRzICoqcGxhY2Vob2xkZXJzIG9ubHkqKjsgYC5lbnZgIGlzIGdpdC1pZ25vcmVkLgoKLS0tCgojIyAzLiBEZXBsb3ltZW50CgoxLiBQcm92aXNpb24gYSBob3N0IHdpdGggRG9ja2VyIEVuZ2luZSArIENvbXBvc2UgdjIuCjIuIENsb25lIHRoZSByZXBvc2l0b3J5IGFuZCBjaGVjayBvdXQgdGhlIHJlbGVhc2UgdGFnIChgdjAuMS4wYCkuCjMuIENyZWF0ZSBgLmVudmAgb24gdGhlIGhvc3QgZnJvbSBgLmVudi5leGFtcGxlYCBhbmQgZmlsbCBpbiB0aGUgcmVhbCB2YWx1ZXMKICAgKG9yIGV4cG9ydCB0aGVtIGZyb20geW91ciBzZWNyZXQgc3RvcmUpLgo0LiBgZG9ja2VyIGNvbXBvc2UgLWYgaW5mcmFzdHJ1Y3R1cmUvZG9ja2VyLWNvbXBvc2UueW1sIC0tZW52LWZpbGUgLmVudiB1cCAtZCAtLWJ1aWxkYAo1LiBWZXJpZnk6IGBjdXJsIC1mIGh0dHA6Ly9sb2NhbGhvc3Q6ODA4MC9hcGkvdjEvaGVhbHRoYCBhbmQgb3BlbiB0aGUgc3RvcmVmcm9udC4KNi4gUHV0IGEgVExTLXRlcm1pbmF0aW5nIHJldmVyc2UgcHJveHkgKENhZGR5LCBUcmFlZmlrLCBvciBhIGNsb3VkIExCKSBpbiBmcm9udCBvZgogICBgUFJPWFlfSFRUUF9QT1JUYDsgVGVsZWdyYW0gTWluaSBBcHBzIHJlcXVpcmUgSFRUUFMuCgoqKlJvbGxiYWNrLioqIGBkb2NrZXIgY29tcG9zZSAuLi4gZG93bmAsIGNoZWNrIG91dCB0aGUgcHJldmlvdXMgdGFnLCByZXBlYXQgc3RlcCA0LgoKIyMjIFNlcnZpY2UgdG9wb2xvZ3kKCnwgU2VydmljZSB8IEludGVybmFsIHBvcnQgfCBQdWJsaXNoZWQgfCBQdXJwb3NlIHwKfC0tLXwtLS18LS0tfC0tLXwKfCBgZGJgIHwgNTQzMiB8IOKAlCB8IFBvc3RncmVTUUwgMTYsIGRhdGEgaW4gbmFtZWQgdm9sdW1lIGBwZ2RhdGFgIHwKfCBgYXBpYCB8IDgwODAgfCDigJQgfCBBU1AuTkVUIENvcmUgQVBJIHwKfCBgd2ViYCB8IDgwIHwg4oCUIHwgc3RhdGljIGZyb250ZW5kIChuZ2lueCkgfAp8IGBwcm94eWAgfCA4MCB8IGAke1BST1hZX0hUVFBfUE9SVDotODA4MH1gIHwgc2luZ2xlIG9yaWdpbjogYC9hcGlgIOKGkiBgYXBpOjgwODBgLCBgL2Ag4oaSIGB3ZWI6ODBgIHwKCk9ubHkgYHByb3h5YCBwdWJsaXNoZXMgYSBob3N0IHBvcnQsIHNvIHRoZSBicm93c2VyIHRhbGtzIHRvIG9uZSBvcmlnaW4gYW5kIG5vIENPUlMKY29uZmlndXJhdGlvbiBpcyByZXF1aXJlZC4gYGRiYCBhbmQgYGFwaWAgZXhwb3NlIGhlYWx0aGNoZWNrczsgYGFwaWAgd2FpdHMgZm9yCmBkYmAgdG8gYmUgaGVhbHRoeSBiZWZvcmUgc3RhcnRpbmcuCgotLS0KCiMjIDQuIFAwIHZhbGlkYXRpb24gbGltaXRhdGlvbnMgKGV4cGxpY2l0LCB1bnZlcmlmaWVkIGl0ZW1zKQoKLSAqKmBkb2NrZXIgY29tcG9zZSBjb25maWdgIHdhcyBOT1QgdmVyaWZpZWQgaW4gdGhlIHNhbmRib3guKiogRG9ja2VyIGlzIG5vdCBpbnN0YWxsZWQKICBpbiB0aGUgYnVpbGQgc2FuZGJveCAoYHdoaWNoIGRvY2tlcmAg4oaSIG5vdCBmb3VuZCksIHNvIHRoZSBtYW5pZmVzdCBjYW4gb25seSBiZQogIHZhbGlkYXRlZCBieSB0aGUgYGNvbXBvc2UtY29uZmlnYCBDSSBqb2Igb3Igb24gYSBtYWNoaW5lIHdpdGggRG9ja2VyLiBUaGlzIGlzIGFuCiAgZXhwbGljaXQsIHVudmVyaWZpZWQgaXRlbSBmb3IgUDAuCi0gKipgbmdpbnggLXRgIGluIENJIGlzIGEgc3ludGF4IGNoZWNrIG9ubHkqKiDigJQgc2VlIMKnMS4gSXQgZG9lcyBub3QgcHJvdmUgc2VydmljZQogIGNvbm5lY3Rpdml0eS4KLSBZQU1ML0pTT04gc3ludGF4IG9mIHRoZSBjb21taXR0ZWQgZmlsZXMgd2FzIHZhbGlkYXRlZCBsb2NhbGx5IChgeWFtbC5zYWZlX2xvYWRgLAogIGBqc29uLmxvYWRgKS4gVGhhdCBpcyBhICoqc3ludGF4IGNoZWNrIG9ubHkqKiwgbm90IGEgcnVudGltZSBjaGVjay4KCi0tLQoKIyMgNS4gTG9jYWwgdmFsaWRhdGlvbiBjb21tYW5kcwoKYGBgYmFzaAojIGNvbXBvc2UgbWFuaWZlc3QgKG5lZWRzIERvY2tlcikKZG9ja2VyIGNvbXBvc2UgLWYgaW5mcmFzdHJ1Y3R1cmUvZG9ja2VyLWNvbXBvc2UueW1sIC0tZW52LWZpbGUgLmVudiBjb25maWcKCiMgbmdpbnggc3ludGF4IChuZWVkcyBEb2NrZXIpCmRvY2tlciBydW4gLS1ybSAtdiAiJFBXRC9pbmZyYXN0cnVjdHVyZS9kb2NrZXIvbmdpbnguY29uZjovZXRjL25naW54L2NvbmYuZC9kZWZhdWx0LmNvbmY6cm8iIFwKICBuZ2lueDoxLjI3LWFscGluZSBuZ2lueCAtdApkb2NrZXIgcnVuIC0tcm0gLXYgIiRQV0QvaW5mcmFzdHJ1Y3R1cmUvZG9ja2VyL3dlYi1uZ2lueC5jb25mOi9ldGMvbmdpbngvY29uZi5kL2RlZmF1bHQuY29uZjpybyIgXAogIG5naW54OjEuMjctYWxwaW5lIG5naW54IC10CmBgYAo=</content>
-<encoding>base64</encoding>
+# Operations — CI, secrets, deployment
+
+Owner: **Agent 5** (DevOps & GitHub Repository Engineer).
+Product / architecture docs live in `docs/architecture/` and `docs/decisions/` (Agent 1).
+
+---
+
+## 1. CI job matrix
+
+`.github/workflows/ci.yml` runs on **every push** (all branches) and on **every pull
+request targeting `main`**. A `workflow_dispatch` trigger is available for manual runs.
+Superseded runs on the same ref are cancelled (`concurrency.cancel-in-progress`).
+
+| Job | Steps | Skips when |
+|---|---|---|
+| `backend-build` | `dotnet restore` → `build -c Release` → `test` on `backend/TelegramCrm.sln`; uploads `test-results.trx` | `backend/TelegramCrm.sln` absent |
+| `frontend-build` | `pnpm install --frozen-lockfile` → `pnpm typecheck` → `pnpm build` | `frontend/package.json` absent |
+| `lint` | `dotnet format --verify-no-changes` + `pnpm lint` | neither project present |
+| `contract-check` | regenerate `frontend/src/types/api.d.ts` from `contracts/openapi.json`, fail on drift | contract or frontend absent |
+| `compose-config` | `docker compose config --quiet` + `nginx -t` on both nginx configs | never (always runs) |
+| `ci-status` | gate job; fails if any job above did not succeed | never |
+
+**P0 behaviour.** While a project does not exist yet, its job exits with a `::notice`
+instead of failing, so `main` stays green from the first commit. The guards disappear
+naturally once P1/P3 land the real projects.
+
+**Merge policy.** Merge only when `ci-status` is green. `ci-status` is the single
+required status check for branch protection.
+
+### What `compose-config` does and does not prove
+
+The `nginx -t` step runs each config inside a throwaway `nginx:1.27-alpine` container
+with `--add-host api:127.0.0.1 --add-host web:127.0.0.1`. Those host entries exist
+**only so that nginx can resolve the upstream names at parse time**.
+
+> **This is a syntax check, not a connectivity check.** It does not verify that the
+> `api` or `web` services are reachable, that ports match, that the reverse proxy
+> actually forwards traffic, or that TLS terminates correctly. Real end-to-end
+> verification requires `docker compose up` on a host with Docker and is out of scope
+> for CI.
+
+---
+
+## 2. GitHub Secrets
+
+Configure under **Settings → Secrets and variables → Actions**. CI itself needs none of
+them; they are injected at deploy time only.
+
+| Secret | Used by | Description |
+|---|---|---|
+| `POSTGRES_PASSWORD` | deploy | database password |
+| `TELEGRAM_BOT_TOKEN` | deploy | bot token from @BotFather |
+| `JWT_SECRET` | deploy | ≥32 random chars (`openssl rand -base64 48`) |
+
+Rules:
+
+- Never echo a secret in a workflow log.
+- Never write a secret into a committed file.
+- `.env.example` holds **placeholders only**; `.env` is git-ignored.
+
+---
+
+## 3. Deployment
+
+1. Provision a host with Docker Engine + Compose v2.
+2. Clone the repository and check out the release tag (`v0.1.0`).
+3. Create `.env` on the host from `.env.example` and fill in the real values
+   (or export them from your secret store).
+4. `docker compose -f infrastructure/docker-compose.yml --env-file .env up -d --build`
+5. Verify: `curl -f http://localhost:8080/api/v1/health` and open the storefront.
+6. Put a TLS-terminating reverse proxy (Caddy, Traefik, or a cloud LB) in front of
+   `PROXY_HTTP_PORT`; Telegram Mini Apps require HTTPS.
+
+**Rollback.** `docker compose ... down`, check out the previous tag, repeat step 4.
+
+### Service topology
+
+| Service | Internal port | Published | Purpose |
+|---|---|---|---|
+| `db` | 5432 | — | PostgreSQL 16, data in named volume `pgdata` |
+| `api` | 8080 | — | ASP.NET Core API |
+| `web` | 80 | — | static frontend (nginx) |
+| `proxy` | 80 | `${PROXY_HTTP_PORT:-8080}` | single origin: `/api` → `api:8080`, `/` → `web:80` |
+
+Only `proxy` publishes a host port, so the browser talks to one origin and no CORS
+configuration is required. `db` and `api` expose healthchecks; `api` waits for
+`db` to be healthy before starting.
+
+---
+
+## 4. P0 validation limitations (explicit, unverified items)
+
+- **`docker compose config` was NOT verified in the sandbox.** Docker is not installed
+  in the build sandbox (`which docker` → not found), so the manifest can only be
+  validated by the `compose-config` CI job or on a machine with Docker. This is an
+  explicit, unverified item for P0.
+- **`nginx -t` in CI is a syntax check only** — see §1. It does not prove service
+  connectivity.
+- YAML/JSON syntax of the committed files was validated locally (`yaml.safe_load`,
+  `json.load`). That is a **syntax check only**, not a runtime check.
+
+---
+
+## 5. Local validation commands
+
+```bash
+# compose manifest (needs Docker)
+docker compose -f infrastructure/docker-compose.yml --env-file .env config
+
+# nginx syntax (needs Docker)
+docker run --rm -v "$PWD/infrastructure/docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+  nginx:1.27-alpine nginx -t
+docker run --rm -v "$PWD/infrastructure/docker/web-nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+  nginx:1.27-alpine nginx -t
