@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>TelegramCrm.Domain</RootNamespace>
+    <AssemblyName>TelegramCrm.Domain</AssemblyName>
+  </PropertyGroup>
+
+</Project>
