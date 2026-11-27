@@ -306,10 +306,57 @@ jobs:
             -v "$PWD/infrastructure/docker/security-headers.conf:/etc/nginx/conf.d/security-headers.conf:ro" \
             nginx:1.27-alpine nginx -t
 
+  e2e:
+    name: e2e
+    needs: [backend-build, frontend-build, compose-config]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      POSTGRES_PASSWORD: ci-e2e-postgres-password
+      TELEGRAM_BOT_TOKEN: "123456789:ci-e2e-telegram-bot-token-for-hmac"
+      TELEGRAM_WEBHOOK_SECRET: ci-e2e-webhook-secret-token
+      JWT_SECRET: ci-e2e-jwt-signing-secret-at-least-32-bytes-long
+      TELEGRAM_MINI_APP_BASE_URL: http://localhost:8080
+      TELEGRAM_ENABLE_OUTBOX_WORKER: "false"
+      PROXY_HTTP_PORT: "8080"
+      E2E_BASE_URL: http://localhost:8080
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build and start full Docker Compose stack
+        run: |
+          docker compose -f infrastructure/docker-compose.yml up -d --build --wait --wait-timeout 180
+
+      - name: Install Playwright Chromium
+        run: |
+          mkdir -p /tmp/pw
+          npm --prefix /tmp/pw install --no-save playwright@1.52.0
+          /tmp/pw/node_modules/.bin/playwright install chromium --with-deps
+
+      - name: Run full-stack Playwright E2E suite
+        run: |
+          NODE_PATH=/tmp/pw/node_modules node frontend/e2e/full-stack.mjs
+
+      - name: Dump compose logs on failure
+        if: failure()
+        run: |
+          docker compose -f infrastructure/docker-compose.yml ps
+          docker compose -f infrastructure/docker-compose.yml logs --tail=200
+
+      - name: Tear down compose stack
+        if: always()
+        run: |
+          docker compose -f infrastructure/docker-compose.yml down -v --remove-orphans
+
   ci-status:
     name: ci-status
     if: always()
-    needs: [backend-build, frontend-build, lint, contract-check, compose-config]
+    needs: [backend-build, frontend-build, lint, contract-check, compose-config, e2e]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all jobs succeeded
@@ -319,10 +366,10 @@ jobs:
           echo "lint:            ${{ needs.lint.result }}"
           echo "contract-check:  ${{ needs.contract-check.result }}"
           echo "compose-config:  ${{ needs.compose-config.result }}"
-          # P3+: every job must be strictly 'success' (no silent skips allowed).
+          echo "e2e:             ${{ needs.e2e.result }}"
           for r in "${{ needs.backend-build.result }}" "${{ needs.frontend-build.result }}" \
                    "${{ needs.lint.result }}" "${{ needs.contract-check.result }}" \
-                   "${{ needs.compose-config.result }}"; do
+                   "${{ needs.compose-config.result }}" "${{ needs.e2e.result }}"; do
             if [ "$r" != "success" ]; then
               echo "::error title=CI failed::at least one required job did not succeed."
               exit 1

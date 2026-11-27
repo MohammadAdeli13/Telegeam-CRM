@@ -1,8 +1,13 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Options;
 using TelegramCrm.Api.Endpoints;
 using TelegramCrm.Api.Infrastructure;
 using TelegramCrm.Infrastructure;
+using TelegramCrm.Infrastructure.Persistence;
+using TelegramCrm.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,13 +25,36 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddCrmOpenApi();
 
 var app = builder.Build();
+var openApiOutputPath = OpenApiExporter.GetOutputPath(args);
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // MapOpenApi also registers the document provider used by the contract exporter below.
-if (app.Environment.IsDevelopment() || OpenApiExporter.GetOutputPath(args) is not null)
+if (app.Environment.IsDevelopment() || openApiOutputPath is not null)
 {
     app.MapOpenApi();
+}
+
+// Serve uploaded product images from the configured tenant-namespaced storage directory.
+if (openApiOutputPath is null)
+{
+    var storageOptions = app.Services.GetRequiredService<IOptions<FileStorageOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(storageOptions.RootPath))
+    {
+        var storageRoot = Path.GetFullPath(storageOptions.RootPath);
+        Directory.CreateDirectory(storageRoot);
+
+        var requestPath = storageOptions.PublicBaseUrl.StartsWith('/')
+            ? storageOptions.PublicBaseUrl.TrimEnd('/')
+            : $"/{storageOptions.PublicBaseUrl.TrimEnd('/')}";
+
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(storageRoot),
+            RequestPath = requestPath,
+            ServeUnknownFileTypes = false,
+        });
+    }
 }
 
 app.UseAuthentication();
@@ -51,9 +79,6 @@ app.MapTelegramWebhookEndpoints();
 
 // Contract generation: `dotnet run --project src/TelegramCrm.Api -- --generate-openapi <path>`
 // emits the document from the real endpoint metadata and exits (see contracts/README.md).
-// The host is started on an ephemeral loopback port first, because the endpoint data
-// source is only materialised once the application has started.
-var openApiOutputPath = OpenApiExporter.GetOutputPath(args);
 if (openApiOutputPath is not null)
 {
     app.Urls.Add("http://127.0.0.1:0");
@@ -68,6 +93,14 @@ if (openApiOutputPath is not null)
     }
 
     return;
+}
+
+// Container / production startup: apply EF Core migrations when Database:AutoMigrate is enabled.
+if (app.Configuration.GetValue<bool>("Database:AutoMigrate"))
+{
+    using var migrationScope = app.Services.CreateScope();
+    var dbContext = migrationScope.ServiceProvider.GetRequiredService<CrmDbContext>();
+    await dbContext.Database.MigrateAsync().ConfigureAwait(false);
 }
 
 app.Run();
