@@ -309,7 +309,7 @@ jobs:
   e2e:
     name: e2e
     needs: [backend-build, frontend-build, compose-config]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       POSTGRES_PASSWORD: ci-e2e-postgres-password
@@ -335,7 +335,7 @@ jobs:
       - name: Install Playwright Chromium
         run: |
           mkdir -p /tmp/pw
-          npm --prefix /tmp/pw install --no-save playwright@1.52.0
+          npm --prefix /tmp/pw install --no-save playwright@latest
           /tmp/pw/node_modules/.bin/playwright install chromium --with-deps
 
       - name: Run full-stack Playwright E2E suite
