@@ -1,0 +1,110 @@
+{
+  "app": {
+    "name": "تلگرام CRM",
+    "tagline": "مدیریت فروشگاه و سفارش‌های تلگرامی",
+    "skipToContent": "رفتن به محتوای اصلی",
+    "loading": "در حال بارگذاری...",
+    "retry": "تلاش مجدد",
+    "errorTitle": "خطایی رخ داد",
+    "errorGeneric": "در برقراری ارتباط با سرور مشکلی پیش آمد.",
+    "emptyTitle": "موردی یافت نشد",
+    "languageToggle": "تغییر زبان",
+    "themeToggle": "تغییر پوسته روشن/تیره",
+    "dark": "تیره",
+    "light": "روشن",
+    "persian": "فارسی",
+    "english": "English"
+  },
+  "auth": {
+    "authenticating": "در حال احراز هویت از طریق تلگرام...",
+    "outsideTelegramTitle": "ورود از طریق مینی‌اپ تلگرام",
+    "outsideTelegramDesc": "این وب‌اپ برای اجرا داخل تلگرام طراحی شده است. می‌توانید ویترین یک فروشگاه را باز کنید یا در حالت توسعه وارد شوید.",
+    "reopenTitle": "نشست شما منقضی شد",
+    "reopenDesc": "لطفاً وب‌اپ را از داخل تلگرام ببندید و دوباره باز کنید.",
+    "retryAuth": "تلاش مجدد احراز هویت",
+    "openStorefrontTitle": "مشاهده ویترین فروشگاه",
+    "shopSlugLabel": "شناسه فروشگاه (Slug)",
+    "shopSlugPlaceholder": "مثلاً: coffee-shop",
+    "openStorefrontCta": "باز کردن ویترین",
+    "devInitDataLabel": "رشته initData (حالت توسعه)",
+    "devInitDataPlaceholder": "initData امضاشده تلگرام را وارد کنید",
+    "devSignInCta": "ورود با initData",
+    "selectShopTitle": "انتخاب فروشگاه",
+    "selectShopDesc": "فروشگاهی که می‌خواهید مدیریت کنید انتخاب نمایید.",
+    "createNewShop": "ساخت فروشگاه جدید",
+    "signOut": "خروج از نشست",
+    "failed": "احراز هویت ناموفق بود."
+  },
+  "onboarding": {
+    "title": "ساخت فروشگاه جدید",
+    "subtitle": "فروشگاه تلگرامی خود را در چند ثانیه راه‌اندازی کنید.",
+    "nameLabel": "نام فروشگاه",
+    "namePlaceholder": "مثلاً: گالری نور",
+    "slugLabel": "نشانی یکتا (Slug)",
+    "slugHelper": "فقط حروف کوچک انگلیسی، اعداد و خط تیره (۳ تا ۴۰ کاراکتر)",
+    "slugPlaceholder": "noor-gallery",
+    "languageLabel": "زبان پیش‌فرض",
+    "currencyLabel": "واحد پول",
+    "submit": "ایجاد فروشگاه و ورود به پنل",
+    "submitting": "در حال ساخت فروشگاه...",
+    "slugTaken": "این نشانی قبلاً استفاده شده است.",
+    "validationName": "نام فروشگاه باید بین ۲ تا ۱۲۰ کاراکتر باشد.",
+    "validationSlug": "شناسه باید ۳ تا ۴۰ کاراکتر از حروف کوچک انگلیسی، عدد و خط تیره باشد."
+  },
+  "merchant": {
+    "nav": {
+      "dashboard": "داشبورد",
+      "products": "محصولات",
+      "orders": "سفارش‌ها",
+      "customers": "مشتریان",
+      "settings": "تنظیمات"
+    },
+    "switchShop": "تغییر فروشگاه",
+    "previewStorefront": "مشاهده ویترین",
+    "copyShopLink": "کپی لینک فروشگاه",
+    "linkCopied": "کپی شد",
+    "dashboard": {
+      "title": "نمای کلی فروشگاه",
+      "apiStatus": "وضعیت سرویس",
+      "apiHealthy": "متصل و پایدار",
+      "apiOffline": "در دسترس نیست",
+      "activeShop": "فروشگاه فعال",
+      "quickActions": "دسترسی سریع",
+      "manageProducts": "مدیریت محصولات و موجودی",
+      "manageOrders": "پیگیری و تغییر وضعیت سفارش‌ها",
+      "manageCustomers": "لیست مشتریان و برچسب‌ها",
+      "shellReadyNotice": "هسته پنل فروشنده آماده و متصل به API است. فرم‌های کامل CRUD در فاز P4 فعال می‌شوند."
+    },
+    "placeholders": {
+      "productsTitle": "محصولات و دسته‌بندی‌ها",
+      "productsDesc": "ایجاد، ویرایش، مدیریت تصاویر و کنترل موجودی محصولات در فاز P4 روی همین ساختار پیاده‌سازی می‌شود.",
+      "ordersTitle": "سفارش‌ها",
+      "ordersDesc": "مشاهده سفارش‌ها، فیلتر وضعیت و تغییر وضعیت با ماشین حالت در فاز P4 تکمیل می‌شود.",
+      "customersTitle": "مشتریان CRM",
+      "customersDesc": "فهرست مشتریان، سوابق خرید، برچسب‌ها و یادداشت خصوصی در فاز P4 تکمیل می‌شود.",
+      "settingsTitle": "تنظیمات فروشگاه",
+      "settingsDesc": "مدیریت زبان، واحد پول و تنظیمات اختصاصی فروشگاه."
+    }
+  },
+  "storefront": {
+    "nav": {
+      "shop": "فروشگاه",
+      "cart": "سبد خرید",
+      "orders": "سفارش‌های من"
+    },
+    "allCategories": "همه دسته‌ها",
+    "searchLabel": "جست‌وجوی محصول",
+    "searchPlaceholder": "نام محصول را بنویسید...",
+    "inStock": "موجود ({{count}})",
+    "outOfStock": "ناموجود",
+    "emptyProducts": "هنوز محصول فعالی در این فروشگاه ثبت نشده است.",
+    "shopNotFoundTitle": "فروشگاه یافت نشد",
+    "shopNotFoundDesc": "نشانی فروشگاه اشتباه است یا فروشگاه غیرفعال شده است.",
+    "backHome": "بازگشت به صفحه اصلی",
+    "cartTitle": "سبد خرید",
+    "cartEmpty": "سبد خرید شما خالی است.",
+    "myOrdersTitle": "سفارش‌های من",
+    "myOrdersLoginRequired": "برای مشاهده سفارش‌های خود از داخل تلگرام وارد شوید.",
+    "myOrdersEmpty": "هنوز سفارشی در این فروشگاه ثبت نکرده‌اید."
+  }
+}

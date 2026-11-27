@@ -3,10 +3,6 @@ name: CI
 # Telegram CRM — continuous integration.
 # Runs on every push to main and every pull request targeting main. Merge policy:
 # a PR may only be merged when every job is green.
-#
-# P0 note: the backend solution and the frontend package do not exist yet, so each
-# job detects its project and exits with a ::notice instead of failing. The guards
-# disappear naturally once P1/P3 land the real projects.
 
 on:
   push:
@@ -33,7 +29,6 @@ jobs:
     name: backend-build
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    # P2a: real PostgreSQL 16 for IntegrationTests (migrations + queries).
     services:
       postgres:
         image: postgres:16-alpine
@@ -58,7 +53,7 @@ jobs:
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=backend-build skipped::backend/TelegramCrm.sln not found (P0 skeleton)."
+            echo "::notice title=backend-build skipped::backend/TelegramCrm.sln not found."
           fi
 
       - name: Setup .NET
@@ -149,7 +144,7 @@ jobs:
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=frontend-build skipped::frontend/package.json not found (P0 skeleton)."
+            echo "::notice title=frontend-build skipped::frontend/package.json not found."
           fi
 
       - name: Setup pnpm
@@ -174,6 +169,10 @@ jobs:
         if: steps.detect.outputs.present == 'true'
         run: pnpm typecheck
 
+      - name: Test
+        if: steps.detect.outputs.present == 'true'
+        run: pnpm test
+
       - name: Build
         if: steps.detect.outputs.present == 'true'
         run: pnpm build
@@ -191,7 +190,7 @@ jobs:
           [ -f backend/TelegramCrm.sln ] && echo "backend=true" >> "$GITHUB_OUTPUT" || echo "backend=false" >> "$GITHUB_OUTPUT"
           [ -f frontend/package.json ] && echo "frontend=true" >> "$GITHUB_OUTPUT" || echo "frontend=false" >> "$GITHUB_OUTPUT"
           if [ ! -f backend/TelegramCrm.sln ] && [ ! -f frontend/package.json ]; then
-            echo "::notice title=lint skipped::no backend solution or frontend package yet (P0 skeleton)."
+            echo "::notice title=lint skipped::no backend solution or frontend package yet."
           fi
 
       - name: Setup .NET
@@ -246,7 +245,7 @@ jobs:
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=contract-check skipped::contracts/openapi.json or frontend/package.json missing (P0 skeleton)."
+            echo "::notice title=contract-check skipped::contracts/openapi.json or frontend/package.json missing."
           fi
 
       - name: Setup pnpm
@@ -287,7 +286,6 @@ jobs:
 
       - name: Validate docker-compose.yml
         run: |
-          # Dummy values: `config` only needs the required variables to be set.
           export POSTGRES_PASSWORD=ci-dummy-password
           export TELEGRAM_BOT_TOKEN=000000000:ci-dummy-token
           export TELEGRAM_WEBHOOK_SECRET=ci-dummy-webhook-secret
@@ -297,11 +295,6 @@ jobs:
 
       - name: Validate nginx configs (syntax)
         run: |
-          # SYNTAX CHECK ONLY. --add-host exists purely so nginx can resolve the
-          # upstream names (api, web) at parse time inside this throwaway container.
-          # It does NOT prove the services are reachable, that ports match, or that
-          # the reverse proxy actually forwards traffic. End-to-end verification
-          # needs `docker compose up` on a host with Docker.
           docker run --rm \
             --add-host api:127.0.0.1 \
             --add-host web:127.0.0.1 \
@@ -326,18 +319,12 @@ jobs:
           echo "lint:            ${{ needs.lint.result }}"
           echo "contract-check:  ${{ needs.contract-check.result }}"
           echo "compose-config:  ${{ needs.compose-config.result }}"
-          # P2a: backend-build and lint must be strictly 'success' (no 'skipped').
-          # 'skipped' stays allowed only for frontend-build and contract-check until P3.
-          for r in "${{ needs.backend-build.result }}" "${{ needs.lint.result }}" \
+          # P3+: every job must be strictly 'success' (no silent skips allowed).
+          for r in "${{ needs.backend-build.result }}" "${{ needs.frontend-build.result }}" \
+                   "${{ needs.lint.result }}" "${{ needs.contract-check.result }}" \
                    "${{ needs.compose-config.result }}"; do
             if [ "$r" != "success" ]; then
-              echo "::error title=CI failed::a required job (backend-build/lint/compose-config) did not succeed."
-              exit 1
-            fi
-          done
-          for r in "${{ needs.frontend-build.result }}" "${{ needs.contract-check.result }}"; do
-            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
-              echo "::error title=CI failed::frontend-build or contract-check did not succeed."
+              echo "::error title=CI failed::at least one required job did not succeed."
               exit 1
             fi
           done
