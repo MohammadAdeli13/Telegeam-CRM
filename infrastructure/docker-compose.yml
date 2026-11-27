@@ -2,7 +2,7 @@
 # Telegram CRM — local / single-host stack
 #
 #   docker compose -f infrastructure/docker-compose.yml --env-file .env config
-#   docker compose -f infrastructure/docker-compose.yml --env-file .env up -d --build
+#   docker compose -f infrastructure/docker-compose.yml --env-file .env up -d --build --wait
 #
 # Only `proxy` publishes a host port, so the browser sees a single origin and
 # no CORS configuration is needed.
@@ -27,13 +27,12 @@ services:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 10
-      start_period: 20s
+      retries: 12
+      start_period: 10s
     networks:
       - backend
-    # Not published: reachable only from the compose network.
 
   # ---------------------------------------------------------------------------
   # API — ASP.NET Core 10
@@ -47,21 +46,29 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection:-Host=db;Port=5432;Database=${POSTGRES_DB:-telegram_crm};Username=${POSTGRES_USER:-telegram_crm};Password=${POSTGRES_PASSWORD}}
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-telegram_crm};Username=${POSTGRES_USER:-telegram_crm};Password=${POSTGRES_PASSWORD}
+      Database__AutoMigrate: ${DATABASE_AUTO_MIGRATE:-true}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:?TELEGRAM_WEBHOOK_SECRET is required}
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
-      JWT_ISSUER: ${JWT_ISSUER:-telegram-crm}
-      JWT_AUDIENCE: ${JWT_AUDIENCE:-telegram-crm-web}
+      Telegram__MiniAppBaseUrl: ${TELEGRAM_MINI_APP_BASE_URL:-http://localhost:8080}
+      Telegram__EnableOutboxWorker: ${TELEGRAM_ENABLE_OUTBOX_WORKER:-true}
+      Jwt__Secret: ${JWT_SECRET:?JWT_SECRET is required}
+      Jwt__Issuer: ${JWT_ISSUER:-telegram-crm}
+      Jwt__Audience: ${JWT_AUDIENCE:-telegram-crm-web}
+      Auth__JwtLifetimeMinutes: ${JWT_ACCESS_TOKEN_MINUTES:-60}
+      FileStorage__RootPath: /app/storage
+      FileStorage__PublicBaseUrl: /files
+    volumes:
+      - uploads:/app/storage
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/v1/health || exit 1"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 40s
+      retries: 10
+      start_period: 20s
     networks:
       - backend
 
@@ -78,10 +85,10 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost/healthz || exit 1"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 6
+      start_period: 5s
     networks:
       - backend
 
@@ -98,20 +105,22 @@ services:
       - ./docker/security-headers.conf:/etc/nginx/conf.d/security-headers.conf:ro
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
       web:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost/healthz || exit 1"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 6
+      start_period: 5s
     networks:
       - backend
 
 volumes:
   pgdata:
+    driver: local
+  uploads:
     driver: local
 
 networks:
