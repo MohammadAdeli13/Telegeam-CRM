@@ -1,0 +1,36 @@
+<Project>
+
+  <!--
+    Backend-scoped MSBuild overrides. Owner: Agent 2 (Backend).
+
+    The repository-root Directory.Build.props is owned by Agent 5 and is imported
+    explicitly below so its shared settings (TargetFramework, Nullable,
+    TreatWarningsAsErrors, AnalysisLevel, ...) still apply to every backend project.
+
+    Three settings must differ for the backend:
+      * ManagePackageVersionsCentrally — the root file disables CPM; the backend
+        solution uses backend/Directory.Packages.props instead.
+      * GenerateDocumentationFile — .editorconfig raises IDE0005 to a warning and
+        EnforceCodeStyleInBuild is on, which requires the documentation file to be
+        generated (Roslyn error EnableGenerateDocumentationFile otherwise).
+      * CA1707 — the conventional xUnit naming style (Method_Scenario_Expectation)
+        uses underscores, which CA1707 forbids. It is suppressed for test projects
+        only; production code keeps the rule.
+  -->
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Documentation is generated for the analyzer, not shipped: no CS1591 noise. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- Test projects: the xUnit naming convention uses underscores. -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('Tests'))">
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+</Project>

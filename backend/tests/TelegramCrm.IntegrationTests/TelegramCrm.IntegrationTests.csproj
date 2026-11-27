@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>TelegramCrm.IntegrationTests</RootNamespace>
+    <AssemblyName>TelegramCrm.IntegrationTests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TelegramCrm.Api\TelegramCrm.Api.csproj" />
+    <ProjectReference Include="..\..\src\TelegramCrm.Application\TelegramCrm.Application.csproj" />
+    <ProjectReference Include="..\..\src\TelegramCrm.Domain\TelegramCrm.Domain.csproj" />
+    <ProjectReference Include="..\..\src\TelegramCrm.Infrastructure\TelegramCrm.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
