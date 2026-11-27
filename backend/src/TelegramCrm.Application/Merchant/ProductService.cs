@@ -37,9 +37,11 @@ public sealed class ProductService : MerchantServiceBase
         if (!string.IsNullOrWhiteSpace(q))
         {
             var pattern = SearchPattern.Contains(q);
+#pragma warning disable CA1304, CA1311
             query = query.Where(p =>
-                EF.Functions.Like(p.Name.ToLowerInvariant(), pattern, SearchPattern.EscapeChar) ||
-                (p.NameEn != null && EF.Functions.Like(p.NameEn.ToLowerInvariant(), pattern, SearchPattern.EscapeChar)));
+                EF.Functions.Like(p.Name.ToLower(), pattern, SearchPattern.EscapeChar) ||
+                (p.NameEn != null && EF.Functions.Like(p.NameEn.ToLower(), pattern, SearchPattern.EscapeChar)));
+#pragma warning restore CA1304, CA1311
         }
 
         if (isActive.HasValue)

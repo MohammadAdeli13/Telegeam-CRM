@@ -98,9 +98,11 @@ public sealed class StorefrontService
         if (!string.IsNullOrWhiteSpace(q))
         {
             var pattern = SearchPattern.Contains(q);
+#pragma warning disable CA1304, CA1311
             query = query.Where(p =>
-                EF.Functions.Like(p.Name.ToLowerInvariant(), pattern, SearchPattern.EscapeChar) ||
-                (p.NameEn != null && EF.Functions.Like(p.NameEn.ToLowerInvariant(), pattern, SearchPattern.EscapeChar)));
+                EF.Functions.Like(p.Name.ToLower(), pattern, SearchPattern.EscapeChar) ||
+                (p.NameEn != null && EF.Functions.Like(p.NameEn.ToLower(), pattern, SearchPattern.EscapeChar)));
+#pragma warning restore CA1304, CA1311
         }
 
         var total = await query.CountAsync(cancellationToken).ConfigureAwait(false);
@@ -286,7 +288,8 @@ public sealed class StorefrontService
         try
         {
             var productIds = merged.Select(m => m.ProductId).ToList();
-            var products = await _db.Products
+            var productQuery = isInMemory ? _db.Products : _db.Products.AsNoTracking();
+            var products = await productQuery
                 .Where(p => productIds.Contains(p.Id) && p.IsActive)
                 .ToDictionaryAsync(p => p.Id, cancellationToken)
                 .ConfigureAwait(false);

@@ -261,9 +261,15 @@ public sealed class StorefrontAndOrdersTests : IClassFixture<CrmApiFactory>
             new { status = "Confirmed" });
         Assert.Equal(HttpStatusCode.OK, confirmResp.StatusCode);
 
-        // Run OutboxProcessor deterministically.
+        // Drain all pending outbox messages deterministically.
         var processor = _factory.Services.GetRequiredService<OutboxProcessor>();
-        var delivered = await processor.ProcessBatchAsync();
+        var delivered = 0;
+        int batch;
+        while ((batch = await processor.ProcessBatchAsync()) > 0)
+        {
+            delivered += batch;
+        }
+
         Assert.True(delivered >= 3);
 
         var sent = _factory.TelegramSender.Messages;

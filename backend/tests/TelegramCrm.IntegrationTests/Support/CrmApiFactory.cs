@@ -51,7 +51,7 @@ public sealed class CrmApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment("Development");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
