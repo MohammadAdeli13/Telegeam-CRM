@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using TelegramCrm.Application.Abstractions;
 using TelegramCrm.Application.Common;
 using TelegramCrm.Infrastructure.Persistence;
 
@@ -30,6 +31,9 @@ public sealed class CrmApiFactory : WebApplicationFactory<Program>
     /// <summary>Environment variable that switches the suite onto real PostgreSQL.</summary>
     public const string PostgresConnectionStringVariable = "TEST_POSTGRES_CONNECTION_STRING";
 
+    /// <summary>Test webhook secret configured on the test host.</summary>
+    public const string WebhookSecret = "test-webhook-secret-value-12345";
+
     private readonly string _databaseName = $"crm-tests-{Guid.NewGuid()}";
     private readonly string _postgresDatabaseName = $"crm_test_{Guid.NewGuid():N}";
     private readonly string? _postgresConnectionString;
@@ -42,21 +46,27 @@ public sealed class CrmApiFactory : WebApplicationFactory<Program>
     /// <summary>True when the suite is running against real PostgreSQL.</summary>
     public bool UsesPostgres => !string.IsNullOrWhiteSpace(_postgresConnectionString);
 
+    /// <summary>In-memory spy capturing outbound Telegram messages dispatched by OutboxProcessor.</summary>
+    public FakeTelegramBotSender TelegramSender { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
+        builder.UseEnvironment("Testing");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Jwt:Issuer"] = "telegram-crm",
-                ["Jwt:Audience"] = "telegram-crm-web",
-                ["Jwt:Secret"] = "integration-test-signing-key-at-least-32-bytes-long",
+                ["Jwt:Issuer"] = "telegram-crm-tests",
+                ["Jwt:Audience"] = "telegram-crm-tests-web",
+                ["Jwt:Secret"] = "test-signing-key-at-least-32-bytes-long-0123456789",
                 ["Auth:InitDataMaxAgeSeconds"] = "86400",
                 ["Auth:JwtLifetimeMinutes"] = "60",
                 ["Auth:AllowDevBypass"] = "false",
                 ["TELEGRAM_BOT_TOKEN"] = InitDataBuilder.BotToken,
+                ["TELEGRAM_WEBHOOK_SECRET"] = WebhookSecret,
+                ["Telegram:MiniAppBaseUrl"] = "https://miniapp.test.local",
+                ["Telegram:EnableOutboxWorker"] = "false",
                 ["FileStorage:RootPath"] = Path.Combine(Path.GetTempPath(), "crm-test-storage"),
                 ["FileStorage:PublicBaseUrl"] = "/files",
             });
@@ -64,16 +74,20 @@ public sealed class CrmApiFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
-            var replaced = services
-                .Where(d => d.ServiceType == typeof(CrmDbContext) ||
-                            d.ServiceType == typeof(IAppDbContext) ||
-                            d.ServiceType == typeof(DbContextOptions<CrmDbContext>))
+            var descriptorsToRemove = services
+                .Where(d =>
+                    d.ServiceType == typeof(CrmDbContext) ||
+                    d.ServiceType == typeof(IAppDbContext) ||
+                    d.ServiceType == typeof(DbContextOptions<CrmDbContext>) ||
+                    d.ServiceType == typeof(ITelegramBotSender))
                 .ToList();
 
-            foreach (var descriptor in replaced)
+            foreach (var descriptor in descriptorsToRemove)
             {
                 services.Remove(descriptor);
             }
+
+            services.AddSingleton<ITelegramBotSender>(TelegramSender);
 
             services.AddScoped(sp =>
             {
@@ -168,7 +182,7 @@ public sealed class CrmApiFactory : WebApplicationFactory<Program>
         connection.Open();
 
         using var command = connection.CreateCommand();
-        command.CommandText = $"CREATE DATABASE \"{_postgresDatabaseName}\"";
+        command.CommandText = $"CREATE DATABASE "{_postgresDatabaseName}"";
         command.ExecuteNonQuery();
     }
 
@@ -181,13 +195,5 @@ public sealed class CrmApiFactory : WebApplicationFactory<Program>
 
         builder["Database"] = _postgresDatabaseName;
         return builder.ConnectionString;
-    }
-
-    /// <summary>A tenant context with no tenant, used only for database bootstrap.</summary>
-    private sealed class UnresolvedTenantContext : ITenantContext
-    {
-        public Guid? TenantId => null;
-
-        public bool IsResolved => false;
     }
 }

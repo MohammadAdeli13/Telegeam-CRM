@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentValidation;
 
 namespace TelegramCrm.Application.Merchant;
@@ -141,11 +142,32 @@ public sealed class UpdateSettingsRequestValidator : AbstractValidator<UpdateSet
         RuleForEach(x => x.Settings).ChildRules(setting =>
         {
             setting.RuleFor(s => s.Key).NotEmpty().MaximumLength(120);
-            setting.RuleFor(s => s.Value).NotNull();
+            setting.RuleFor(s => s.Value)
+                .NotEmpty()
+                .Must(IsValidJson)
+                .WithMessage("Setting value must be a valid JSON document.");
         });
         RuleFor(x => x.Settings)
             .Must(list => list.Select(s => s.Key).Distinct(StringComparer.Ordinal).Count() == list.Count)
             .WithMessage("Setting keys must be unique.")
             .When(x => x.Settings is not null);
+    }
+
+    private static bool IsValidJson(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var _ = JsonDocument.Parse(value);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 }

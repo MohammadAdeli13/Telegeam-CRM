@@ -36,8 +36,10 @@ public sealed class ProductService : MerchantServiceBase
 
         if (!string.IsNullOrWhiteSpace(q))
         {
-            var term = q.Trim();
-            query = query.Where(p => p.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+            var pattern = SearchPattern.Contains(q);
+            query = query.Where(p =>
+                EF.Functions.Like(p.Name.ToLowerInvariant(), pattern, SearchPattern.EscapeChar) ||
+                (p.NameEn != null && EF.Functions.Like(p.NameEn.ToLowerInvariant(), pattern, SearchPattern.EscapeChar)));
         }
 
         if (isActive.HasValue)

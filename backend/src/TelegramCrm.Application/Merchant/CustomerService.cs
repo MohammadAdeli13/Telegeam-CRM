@@ -30,10 +30,10 @@ public sealed class CustomerService : MerchantServiceBase
 
         if (!string.IsNullOrWhiteSpace(q))
         {
-            var term = q.Trim();
+            var pattern = SearchPattern.Contains(q);
             query = query.Where(c =>
-                (c.DisplayName != null && c.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
-                (c.Phone != null && c.Phone.Contains(term)));
+                (c.DisplayName != null && EF.Functions.Like(c.DisplayName.ToLowerInvariant(), pattern, SearchPattern.EscapeChar)) ||
+                (c.Phone != null && EF.Functions.Like(c.Phone.ToLowerInvariant(), pattern, SearchPattern.EscapeChar)));
         }
 
         if (tagId.HasValue)

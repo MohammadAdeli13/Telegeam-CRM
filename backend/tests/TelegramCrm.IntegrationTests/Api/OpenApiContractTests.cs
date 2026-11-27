@@ -29,7 +29,6 @@ public sealed class OpenApiContractTests : IClassFixture<CrmApiFactory>
 
         var document = await provider.GetOpenApiDocumentAsync(CancellationToken.None);
 
-        // Serialise through the same writer the exporter uses, then inspect the JSON.
         using var buffer = new MemoryStream();
         await using (var writer = new StreamWriter(buffer, leaveOpen: true))
         {
@@ -49,11 +48,16 @@ public sealed class OpenApiContractTests : IClassFixture<CrmApiFactory>
         Assert.Equal("http", bearer.GetProperty("type").GetString());
         Assert.Equal("bearer", bearer.GetProperty("scheme").GetString());
 
-        // The two genuinely anonymous operations are the only ones without `security`.
+        // Genuinely anonymous operations (plus webhook validated by secret-token header).
         var anonymous = new HashSet<string>(StringComparer.Ordinal)
         {
             "POST /api/v1/auth/telegram",
             "GET /api/v1/health",
+            "GET /api/v1/storefront/{shopSlug}",
+            "GET /api/v1/storefront/{shopSlug}/categories",
+            "GET /api/v1/storefront/{shopSlug}/products",
+            "GET /api/v1/storefront/{shopSlug}/products/{id}",
+            "POST /api/v1/telegram/webhook",
         };
 
         var missing = new List<string>();
@@ -79,7 +83,7 @@ public sealed class OpenApiContractTests : IClassFixture<CrmApiFactory>
     }
 
     [Fact]
-    public async Task Document_CoversTheWholeP2aMerchantSurface()
+    public async Task Document_CoversTheWholeP2BackendSurface()
     {
         using var scope = _factory.Services.CreateScope();
         var provider = scope.ServiceProvider
@@ -120,6 +124,19 @@ public sealed class OpenApiContractTests : IClassFixture<CrmApiFactory>
             "/api/v1/merchant/tags",
             "/api/v1/merchant/tags/{id}",
             "/api/v1/merchant/settings",
+            "/api/v1/merchant/orders",
+            "/api/v1/merchant/orders/{id}",
+            "/api/v1/merchant/orders/{id}/status",
+            "/api/v1/merchant/orders/{id}/history",
+            "/api/v1/storefront/{shopSlug}",
+            "/api/v1/storefront/{shopSlug}/categories",
+            "/api/v1/storefront/{shopSlug}/products",
+            "/api/v1/storefront/{shopSlug}/products/{id}",
+            "/api/v1/storefront/{shopSlug}/cart/validate",
+            "/api/v1/storefront/{shopSlug}/orders",
+            "/api/v1/storefront/{shopSlug}/orders/{id}",
+            "/api/v1/storefront/{shopSlug}/orders/{id}/cancel",
+            "/api/v1/telegram/webhook",
         ];
 
         var absent = expected.Where(p => !paths.Contains(p)).ToList();

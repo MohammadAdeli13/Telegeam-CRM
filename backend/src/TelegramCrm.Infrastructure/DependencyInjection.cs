@@ -6,9 +6,13 @@ using TelegramCrm.Application.Auth;
 using TelegramCrm.Application.Common;
 using TelegramCrm.Application.Merchant;
 using TelegramCrm.Application.Merchants;
+using TelegramCrm.Application.Orders;
+using TelegramCrm.Application.Storefront;
+using TelegramCrm.Application.Telegram;
 using TelegramCrm.Infrastructure.Auth;
 using TelegramCrm.Infrastructure.Persistence;
 using TelegramCrm.Infrastructure.Storage;
+using TelegramCrm.Infrastructure.Telegram;
 
 namespace TelegramCrm.Infrastructure;
 
@@ -22,10 +26,15 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<TelegramAuthOptions>(configuration.GetSection(TelegramAuthOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
+        services.Configure<TelegramBotOptions>(configuration.GetSection(TelegramBotOptions.SectionName));
 
         services.AddHttpContextAccessor();
         services.AddSingleton<IClock, SystemClock>();
-        services.AddScoped<ITenantContext, HttpTenantContext>();
+
+        services.AddScoped<HttpTenantContext>();
+        services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<HttpTenantContext>());
+        services.AddScoped<IStorefrontTenantSetter>(sp => sp.GetRequiredService<HttpTenantContext>());
+
         services.AddScoped<ICurrentUser, HttpCurrentUser>();
         services.AddScoped<TenantGuardInterceptor>();
 
@@ -65,6 +74,20 @@ public static class DependencyInjection
         services.AddScoped<CreateTagRequestValidator>();
         services.AddScoped<AttachTagRequestValidator>();
         services.AddScoped<UpdateSettingsRequestValidator>();
+
+        // Orders, Storefront & Telegram Bot (P2b).
+        services.AddScoped<OrderService>();
+        services.AddScoped<StorefrontService>();
+        services.AddScoped<TelegramWebhookService>();
+
+        services.AddScoped<UpdateOrderStatusRequestValidator>();
+        services.AddScoped<CancelOrderRequestValidator>();
+        services.AddScoped<ValidateCartRequestValidator>();
+        services.AddScoped<PlaceOrderRequestValidator>();
+
+        services.AddSingleton<ITelegramBotSender, TelegramBotSender>();
+        services.AddSingleton<OutboxProcessor>();
+        services.AddHostedService<OutboxWorker>();
 
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
 

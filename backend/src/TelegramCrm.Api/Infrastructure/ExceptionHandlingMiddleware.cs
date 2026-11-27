@@ -113,9 +113,12 @@ public sealed partial class ExceptionHandlingMiddleware
 
     private static int StatusFor(string code) => code switch
     {
+        "idempotency_key_required" or "invalid_status_filter" or "invalid_status"
+            => StatusCodes.Status400BadRequest,
+
         "init_data_missing" or "init_data_malformed" or "init_data_hash_missing" or
         "init_data_invalid_hash" or "init_data_auth_date_missing" or "init_data_expired" or
-        "init_data_auth_date_in_future" or
+        "init_data_auth_date_in_future" or "webhook_secret_invalid" or
         "init_data_user_missing" or "init_data_user_malformed" or "bot_token_not_configured"
             => StatusCodes.Status401Unauthorized,
 
@@ -129,7 +132,8 @@ public sealed partial class ExceptionHandlingMiddleware
 
         "unsupported_media_type" => StatusCodes.Status415UnsupportedMediaType,
 
-        "empty_file" or "file_too_large" => StatusCodes.Status422UnprocessableEntity,
+        "empty_file" or "file_too_large" or "invalid_alt_text" or "product_not_available"
+            => StatusCodes.Status422UnprocessableEntity,
 
         _ => StatusCodes.Status422UnprocessableEntity,
     };
