@@ -37,3 +37,16 @@ public sealed class InvalidOrderStatusTransitionException : DomainException
 
     public OrderStatus To { get; }
 }
+
+/// <summary>
+/// Raised when a resource does not exist <em>for the current tenant</em>. Cross-tenant
+/// access is deliberately indistinguishable from a missing row, so the API answers 404
+/// and never 403 (contract v1.2 §6.4).
+/// </summary>
+public sealed class NotFoundException : DomainException
+{
+    public NotFoundException(string code, string message)
+        : base(code, message)
+    {
+    }
+}

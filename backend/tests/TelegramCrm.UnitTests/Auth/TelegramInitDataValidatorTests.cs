@@ -105,6 +105,43 @@ public sealed class TelegramInitDataValidatorTests
     }
 
     [Fact]
+    public void Validate_WhenAuthDateIsFarInTheFuture_RejectsAsFutureAuthDate()
+    {
+        // P1 QA finding: a payload signed in the future must not be accepted, otherwise it
+        // would remain valid for the whole replay window from a point that has not happened.
+        var initData = InitDataBuilder.Build(authDate: _now.AddMinutes(10));
+
+        var result = CreateValidator().Validate(initData, InitDataBuilder.BotToken);
+
+        Assert.False(result.IsValid);
+        Assert.Equal("init_data_auth_date_in_future", result.ErrorCode);
+        Assert.Null(result.User);
+    }
+
+    [Fact]
+    public void Validate_WhenAuthDateIsJustBeyondTheSkewTolerance_RejectsAsFutureAuthDate()
+    {
+        var initData = InitDataBuilder.Build(authDate: _now.AddSeconds(61));
+
+        var result = CreateValidator().Validate(initData, InitDataBuilder.BotToken);
+
+        Assert.False(result.IsValid);
+        Assert.Equal("init_data_auth_date_in_future", result.ErrorCode);
+    }
+
+    [Fact]
+    public void Validate_WhenAuthDateIsWithinTheSkewTolerance_Accepts()
+    {
+        // 30 s ahead is ordinary clock skew between Telegram and the API.
+        var initData = InitDataBuilder.Build(authDate: _now.AddSeconds(30));
+
+        var result = CreateValidator().Validate(initData, InitDataBuilder.BotToken);
+
+        Assert.True(result.IsValid);
+        Assert.Null(result.ErrorCode);
+    }
+
+    [Fact]
     public void Validate_WhenInitDataIsEmpty_Rejects()
     {
         var result = CreateValidator().Validate(string.Empty, InitDataBuilder.BotToken);

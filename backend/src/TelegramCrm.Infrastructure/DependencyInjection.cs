@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TelegramCrm.Application.Abstractions;
 using TelegramCrm.Application.Auth;
 using TelegramCrm.Application.Common;
+using TelegramCrm.Application.Merchant;
 using TelegramCrm.Application.Merchants;
 using TelegramCrm.Infrastructure.Auth;
 using TelegramCrm.Infrastructure.Persistence;
@@ -45,6 +46,26 @@ public static class DependencyInjection
         services.AddScoped<AuthService>();
         services.AddScoped<MerchantService>();
         services.AddScoped<CreateMerchantRequestValidator>();
+
+        // Merchant back-office (P2a).
+        services.AddScoped<CategoryService>();
+        services.AddScoped<ProductService>();
+        services.AddScoped<ProductImageService>();
+        services.AddScoped<CustomerService>();
+        services.AddScoped<ShopSettingService>();
+
+        services.AddScoped<CreateCategoryRequestValidator>();
+        services.AddScoped<UpdateCategoryRequestValidator>();
+        services.AddScoped<CreateProductRequestValidator>();
+        services.AddScoped<UpdateProductRequestValidator>();
+        services.AddScoped<StockAdjustRequestValidator>();
+        services.AddScoped<UpdateProductImageRequestValidator>();
+        services.AddScoped<CreateCustomerRequestValidator>();
+        services.AddScoped<UpdateCustomerRequestValidator>();
+        services.AddScoped<CreateTagRequestValidator>();
+        services.AddScoped<AttachTagRequestValidator>();
+        services.AddScoped<UpdateSettingsRequestValidator>();
+
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
         return services;

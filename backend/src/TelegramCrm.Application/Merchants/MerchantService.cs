@@ -84,15 +84,16 @@ public sealed class MerchantService
                 _db.Tenants.IgnoreQueryFilters(),
                 m => m.TenantId,
                 t => t.Id,
-                (m, t) => new MerchantDto(
-                    t.Id,
-                    t.Slug,
-                    t.Name,
-                    t.DefaultLanguage,
-                    t.Currency,
-                    t.IsActive,
-                    m.Role.ToString()))
-            .OrderBy(t => t.Name)
+                (m, t) => new { Member = m, Tenant = t })
+            .OrderBy(x => x.Tenant.Name)
+            .Select(x => new MerchantDto(
+                x.Tenant.Id,
+                x.Tenant.Slug,
+                x.Tenant.Name,
+                x.Tenant.DefaultLanguage,
+                x.Tenant.Currency,
+                x.Tenant.IsActive,
+                x.Member.Role.ToString()))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }

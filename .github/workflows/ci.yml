@@ -34,6 +34,21 @@ jobs:
     name: backend-build
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # P2a: real PostgreSQL 16 for IntegrationTests (migrations + queries).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: crm
+          POSTGRES_PASSWORD: crm_test_pwd
+          POSTGRES_DB: telegram_crm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U crm -d telegram_crm_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -76,6 +91,8 @@ jobs:
 
       - name: Test
         if: steps.detect.outputs.present == 'true'
+        env:
+          TEST_POSTGRES_CONNECTION_STRING: "Host=localhost;Port=5432;Database=telegram_crm_test;Username=crm;Password=crm_test_pwd"
         run: >
           dotnet test backend/TelegramCrm.sln
           --no-build
@@ -287,11 +304,18 @@ jobs:
           echo "lint:            ${{ needs.lint.result }}"
           echo "contract-check:  ${{ needs.contract-check.result }}"
           echo "compose-config:  ${{ needs.compose-config.result }}"
-          for r in "${{ needs.backend-build.result }}" "${{ needs.frontend-build.result }}" \
-                   "${{ needs.lint.result }}" "${{ needs.contract-check.result }}" \
+          # P2a: backend-build and lint must be strictly 'success' (no 'skipped').
+          # 'skipped' stays allowed only for frontend-build and contract-check until P3.
+          for r in "${{ needs.backend-build.result }}" "${{ needs.lint.result }}" \
                    "${{ needs.compose-config.result }}"; do
+            if [ "$r" != "success" ]; then
+              echo "::error title=CI failed::a required job (backend-build/lint/compose-config) did not succeed."
+              exit 1
+            fi
+          done
+          for r in "${{ needs.frontend-build.result }}" "${{ needs.contract-check.result }}"; do
             if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
-              echo "::error title=CI failed::at least one job did not succeed."
+              echo "::error title=CI failed::frontend-build or contract-check did not succeed."
               exit 1
             fi
           done
