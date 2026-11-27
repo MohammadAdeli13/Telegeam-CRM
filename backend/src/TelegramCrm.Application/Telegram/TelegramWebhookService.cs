@@ -11,7 +11,7 @@ namespace TelegramCrm.Application.Telegram;
 /// </summary>
 public sealed class TelegramWebhookService
 {
-    private const string ShopDeepLinkPrefix = "shop_";
+    public const string ShopDeepLinkPrefix = "shop_";
 
     private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
 

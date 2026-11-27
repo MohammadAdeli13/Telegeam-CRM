@@ -182,7 +182,7 @@ public sealed class CrmApiFactory : WebApplicationFactory<Program>
         connection.Open();
 
         using var command = connection.CreateCommand();
-        command.CommandText = $"CREATE DATABASE "{_postgresDatabaseName}"";
+        command.CommandText = $"CREATE DATABASE \"{_postgresDatabaseName}\"";
         command.ExecuteNonQuery();
     }
 

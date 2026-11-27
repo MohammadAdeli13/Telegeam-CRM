@@ -87,93 +87,92 @@ public sealed partial class OutboxProcessor
         return delivered;
     }
 
-    private async Task DispatchAsync(OutboxMessage message, CancellationToken cancellationToken)
-    {
-        switch (message.Type)
+    private Task DispatchAsync(OutboxMessage message, CancellationToken cancellationToken) =>
+        message.Type switch
         {
-            case OutboxEventTypes.OrderPlaced:
-            {
-                var payload = JsonSerializer.Deserialize<OrderPlacedOutboxPayload>(message.Payload, _json)
-                    ?? throw new InvalidOperationException("Invalid OrderPlacedOutboxPayload.");
+            OutboxEventTypes.OrderPlaced => DispatchOrderPlacedAsync(message.Payload, cancellationToken),
+            OutboxEventTypes.OrderStatusChanged => DispatchOrderStatusChangedAsync(message.Payload, cancellationToken),
+            OutboxEventTypes.BotReply => DispatchBotReplyAsync(message.Payload, cancellationToken),
+            _ => HandleUnknownType(message),
+        };
 
-                var isPersian = string.Equals(payload.ShopLanguage, "fa", StringComparison.OrdinalIgnoreCase);
-                var amount = payload.TotalAmount.ToString("N2", CultureInfo.InvariantCulture);
-                var customerLabel = string.IsNullOrWhiteSpace(payload.CustomerDisplayName)
-                    ? payload.CustomerTelegramUserId.ToString(CultureInfo.InvariantCulture)
-                    : payload.CustomerDisplayName;
+    private async Task DispatchOrderPlacedAsync(string rawPayload, CancellationToken cancellationToken)
+    {
+        var payload = JsonSerializer.Deserialize<OrderPlacedOutboxPayload>(rawPayload, _json)
+            ?? throw new InvalidOperationException("Invalid OrderPlacedOutboxPayload.");
 
-                var text = isPersian
-                    ? $"سفارش جدید در {payload.ShopName}\nمشتری: {customerLabel}\n" +
-                      $"تعداد اقلام: {payload.ItemCount}\nمبلغ کل: {amount} {payload.Currency}"
-                    : $"New order in {payload.ShopName}\nCustomer: {customerLabel}\n" +
-                      $"Items: {payload.ItemCount}\nTotal: {amount} {payload.Currency}";
+        var isPersian = string.Equals(payload.ShopLanguage, "fa", StringComparison.OrdinalIgnoreCase);
+        var amount = payload.TotalAmount.ToString("N2", CultureInfo.InvariantCulture);
+        var customerLabel = string.IsNullOrWhiteSpace(payload.CustomerDisplayName)
+            ? payload.CustomerTelegramUserId.ToString(CultureInfo.InvariantCulture)
+            : payload.CustomerDisplayName;
 
-                foreach (var merchantChatId in payload.MerchantTelegramUserIds.Where(id => id > 0))
-                {
-                    await _sender.SendMessageAsync(merchantChatId, text, cancellationToken).ConfigureAwait(false);
-                }
+        var text = isPersian
+            ? $"سفارش جدید در {payload.ShopName}\nمشتری: {customerLabel}\n" +
+              $"تعداد اقلام: {payload.ItemCount}\nمبلغ کل: {amount} {payload.Currency}"
+            : $"New order in {payload.ShopName}\nCustomer: {customerLabel}\n" +
+              $"Items: {payload.ItemCount}\nTotal: {amount} {payload.Currency}";
 
-                break;
-            }
-
-            case OutboxEventTypes.OrderStatusChanged:
-            {
-                var payload = JsonSerializer.Deserialize<OrderStatusChangedOutboxPayload>(message.Payload, _json)
-                    ?? throw new InvalidOperationException("Invalid OrderStatusChangedOutboxPayload.");
-
-                if (payload.CustomerTelegramUserId <= 0)
-                {
-                    return;
-                }
-
-                var isPersian = string.Equals(payload.ShopLanguage, "fa", StringComparison.OrdinalIgnoreCase);
-                var shortId = payload.OrderId.ToString("N")[..8];
-                var text = isPersian
-                    ? $"وضعیت سفارش #{shortId} در فروشگاه {payload.ShopName} به «{payload.ToStatus}» تغییر یافت."
-                    : $"Your order #{shortId} in {payload.ShopName} is now '{payload.ToStatus}'.";
-
-                if (!string.IsNullOrWhiteSpace(payload.Reason))
-                {
-                    text += isPersian ? $"\nتوضیح: {payload.Reason}" : $"\nNote: {payload.Reason}";
-                }
-
-                await _sender
-                    .SendMessageAsync(payload.CustomerTelegramUserId, text, cancellationToken)
-                    .ConfigureAwait(false);
-
-                break;
-            }
-
-            case OutboxEventTypes.BotReply:
-            {
-                var payload = JsonSerializer.Deserialize<BotReplyOutboxPayload>(message.Payload, _json)
-                    ?? throw new InvalidOperationException("Invalid BotReplyOutboxPayload.");
-
-                if (!string.IsNullOrWhiteSpace(payload.ButtonText) && !string.IsNullOrWhiteSpace(payload.WebAppUrl))
-                {
-                    await _sender
-                        .SendWebAppButtonAsync(
-                            payload.ChatId,
-                            payload.Text,
-                            payload.ButtonText,
-                            payload.WebAppUrl,
-                            cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                else
-                {
-                    await _sender
-                        .SendMessageAsync(payload.ChatId, payload.Text, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-
-                break;
-            }
-
-            default:
-                LogUnknownOutboxType(message.Id, message.Type);
-                break;
+        foreach (var merchantChatId in payload.MerchantTelegramUserIds.Where(id => id > 0))
+        {
+            await _sender.SendMessageAsync(merchantChatId, text, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    private async Task DispatchOrderStatusChangedAsync(string rawPayload, CancellationToken cancellationToken)
+    {
+        var payload = JsonSerializer.Deserialize<OrderStatusChangedOutboxPayload>(rawPayload, _json)
+            ?? throw new InvalidOperationException("Invalid OrderStatusChangedOutboxPayload.");
+
+        if (payload.CustomerTelegramUserId <= 0)
+        {
+            return;
+        }
+
+        var isPersian = string.Equals(payload.ShopLanguage, "fa", StringComparison.OrdinalIgnoreCase);
+        var shortId = payload.OrderId.ToString("N")[..8];
+        var text = isPersian
+            ? $"وضعیت سفارش #{shortId} در فروشگاه {payload.ShopName} به «{payload.ToStatus}» تغییر یافت."
+            : $"Your order #{shortId} in {payload.ShopName} is now '{payload.ToStatus}'.";
+
+        if (!string.IsNullOrWhiteSpace(payload.Reason))
+        {
+            text += isPersian ? $"\nتوضیح: {payload.Reason}" : $"\nNote: {payload.Reason}";
+        }
+
+        await _sender
+            .SendMessageAsync(payload.CustomerTelegramUserId, text, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task DispatchBotReplyAsync(string rawPayload, CancellationToken cancellationToken)
+    {
+        var payload = JsonSerializer.Deserialize<BotReplyOutboxPayload>(rawPayload, _json)
+            ?? throw new InvalidOperationException("Invalid BotReplyOutboxPayload.");
+
+        if (!string.IsNullOrWhiteSpace(payload.ButtonText) && !string.IsNullOrWhiteSpace(payload.WebAppUrl))
+        {
+            await _sender
+                .SendWebAppButtonAsync(
+                    payload.ChatId,
+                    payload.Text,
+                    payload.ButtonText,
+                    payload.WebAppUrl,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else
+        {
+            await _sender
+                .SendMessageAsync(payload.ChatId, payload.Text, cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    private Task HandleUnknownType(OutboxMessage message)
+    {
+        LogUnknownOutboxType(message.Id, message.Type);
+        return Task.CompletedTask;
     }
 
     [LoggerMessage(

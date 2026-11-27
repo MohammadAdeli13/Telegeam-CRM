@@ -11,7 +11,7 @@ namespace TelegramCrm.IntegrationTests.Api;
 
 /// <summary>
 /// End-to-end tests for P2b: storefront reads, cart validation, idempotent order placement,
-/// concurrent stock oversell prevention, merchant/customer order lifecycle & stock restore,
+/// concurrent stock oversell prevention, merchant/customer order lifecycle and stock restore,
 /// cross-tenant order isolation, Telegram webhook secret check, and OutboxProcessor delivery.
 /// </summary>
 public sealed class StorefrontAndOrdersTests : IClassFixture<CrmApiFactory>
