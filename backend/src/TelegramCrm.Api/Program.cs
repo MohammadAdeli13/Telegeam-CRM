@@ -36,13 +36,18 @@ app.MapHealthEndpoints();
 app.MapAuthEndpoints();
 app.MapMerchantEndpoints();
 
-// Merchant back-office (P2a) — every group requires the `Merchant` policy.
+// Merchant back-office (P2a + P2b) — every group requires the `Merchant` policy.
 app.MapCategoryEndpoints();
 app.MapProductEndpoints();
 app.MapProductImageEndpoints();
 app.MapCustomerEndpoints();
 app.MapTagEndpoints();
 app.MapSettingsEndpoints();
+app.MapMerchantOrderEndpoints();
+
+// Storefront & Telegram Bot webhook (P2b).
+app.MapStorefrontEndpoints();
+app.MapTelegramWebhookEndpoints();
 
 // Contract generation: `dotnet run --project src/TelegramCrm.Api -- --generate-openapi <path>`
 // emits the document from the real endpoint metadata and exits (see contracts/README.md).

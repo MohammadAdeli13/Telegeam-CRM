@@ -30,10 +30,12 @@ public sealed class CustomerService : MerchantServiceBase
 
         if (!string.IsNullOrWhiteSpace(q))
         {
-            var term = q.Trim();
+            var pattern = SearchPattern.Contains(q);
+#pragma warning disable CA1304, CA1311
             query = query.Where(c =>
-                (c.DisplayName != null && c.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
-                (c.Phone != null && c.Phone.Contains(term)));
+                (c.DisplayName != null && EF.Functions.Like(c.DisplayName.ToLower(), pattern, SearchPattern.EscapeChar)) ||
+                (c.Phone != null && EF.Functions.Like(c.Phone.ToLower(), pattern, SearchPattern.EscapeChar)));
+#pragma warning restore CA1304, CA1311
         }
 
         if (tagId.HasValue)
