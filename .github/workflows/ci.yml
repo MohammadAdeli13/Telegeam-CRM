@@ -340,7 +340,7 @@ jobs:
 
       - name: Run full-stack Playwright E2E suite
         run: |
-          NODE_PATH=/tmp/pw/node_modules node frontend/e2e/full-stack.mjs
+          cp frontend/e2e/full-stack.mjs /tmp/pw/full-stack.mjs && node /tmp/pw/full-stack.mjs
 
       - name: Dump compose logs on failure
         if: failure()
