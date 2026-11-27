@@ -10,6 +10,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router'],
+          'query-forms': ['@tanstack/react-query', 'react-hook-form', '@hookform/resolvers', 'zod'],
+          'i18n-ui': ['i18next', 'react-i18next', 'lucide-react'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {

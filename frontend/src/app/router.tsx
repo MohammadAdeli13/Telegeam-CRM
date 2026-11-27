@@ -1,57 +1,57 @@
-import { useEffect } from 'react';
-import { createBrowserRouter, Navigate, useNavigate } from 'react-router';
-import { useAuth } from '@/features/auth/auth-context';
+import { lazy } from 'react';
+import { createBrowserRouter, Navigate } from 'react-router';
 import { AuthPage } from '@/features/auth/AuthPage';
 import { OnboardingPage } from '@/features/auth/OnboardingPage';
-import { MerchantLayout } from '@/features/merchant/MerchantLayout';
-import {
-  MerchantDashboardPage,
-  MerchantSectionPlaceholder,
-} from '@/features/merchant/MerchantPages';
-import { StorefrontLayout } from '@/features/storefront/StorefrontLayout';
-import {
-  StorefrontCartPlaceholder,
-  StorefrontCatalogPage,
-  StorefrontOrdersPlaceholder,
-} from '@/features/storefront/StorefrontPages';
-import { extractShopSlugFromStartParam } from '@/shared/lib/telegram';
-import { LoadingState } from '@/shared/ui/state-views';
+import { EntryRedirect } from './EntryRedirect';
+import { LazyRoute } from './LazyRoute';
 
-function EntryRedirect() {
-  const navigate = useNavigate();
-  const { status, session, telegram } = useAuth();
+const MerchantLayout = lazy(() =>
+  import('@/features/merchant/MerchantLayout').then((m) => ({ default: m.MerchantLayout })),
+);
+const MerchantDashboardPage = lazy(() =>
+  import('@/features/merchant/MerchantDashboardPage').then((m) => ({
+    default: m.MerchantDashboardPage,
+  })),
+);
+const MerchantProductsPage = lazy(() =>
+  import('@/features/merchant/MerchantProductsPage').then((m) => ({
+    default: m.MerchantProductsPage,
+  })),
+);
+const MerchantOrdersPage = lazy(() =>
+  import('@/features/merchant/MerchantOrdersPage').then((m) => ({
+    default: m.MerchantOrdersPage,
+  })),
+);
+const MerchantCustomersPage = lazy(() =>
+  import('@/features/merchant/MerchantCustomersPage').then((m) => ({
+    default: m.MerchantCustomersPage,
+  })),
+);
+const MerchantSettingsPage = lazy(() =>
+  import('@/features/merchant/MerchantSettingsPage').then((m) => ({
+    default: m.MerchantSettingsPage,
+  })),
+);
 
-  useEffect(() => {
-    const deepLinkSlug = extractShopSlugFromStartParam(telegram.startParam);
-    if (deepLinkSlug) {
-      void navigate(`/s/${deepLinkSlug}`, { replace: true });
-      return;
-    }
-
-    if (status === 'bootstrapping') {
-      return;
-    }
-
-    if (status === 'authenticated' && session) {
-      if (session.activeTenant) {
-        void navigate('/merchant', { replace: true });
-      } else if (session.tenants.length === 0) {
-        void navigate('/onboarding', { replace: true });
-      } else {
-        void navigate('/auth', { replace: true });
-      }
-      return;
-    }
-
-    void navigate('/auth', { replace: true });
-  }, [navigate, session, status, telegram.startParam]);
-
-  return (
-    <div className="mx-auto max-w-lg px-4 py-8">
-      <LoadingState rows={2} />
-    </div>
-  );
-}
+const StorefrontLayout = lazy(() =>
+  import('@/features/storefront/StorefrontLayout').then((m) => ({ default: m.StorefrontLayout })),
+);
+const StorefrontCatalogPage = lazy(() =>
+  import('@/features/storefront/StorefrontPages').then((m) => ({
+    default: m.StorefrontCatalogPage,
+  })),
+);
+const StorefrontCartPlaceholder = lazy(() =>
+  import('@/features/storefront/StorefrontPages').then((m) => ({
+    default: m.StorefrontCartPlaceholder,
+  })),
+);
+const StorefrontOrdersPlaceholder = lazy(() =>
+  import('@/features/storefront/StorefrontPages').then((m) => ({
+    default: m.StorefrontOrdersPlaceholder,
+  })),
+);
 
 export const router = createBrowserRouter([
   { path: '/', element: <EntryRedirect /> },
@@ -59,54 +59,86 @@ export const router = createBrowserRouter([
   { path: '/onboarding', element: <OnboardingPage /> },
   {
     path: '/merchant',
-    element: <MerchantLayout />,
+    element: (
+      <LazyRoute>
+        <MerchantLayout />
+      </LazyRoute>
+    ),
     children: [
-      { index: true, element: <MerchantDashboardPage /> },
+      {
+        index: true,
+        element: (
+          <LazyRoute>
+            <MerchantDashboardPage />
+          </LazyRoute>
+        ),
+      },
       {
         path: 'products',
         element: (
-          <MerchantSectionPlaceholder
-            titleKey="merchant.placeholders.productsTitle"
-            descKey="merchant.placeholders.productsDesc"
-          />
+          <LazyRoute>
+            <MerchantProductsPage />
+          </LazyRoute>
         ),
       },
       {
         path: 'orders',
         element: (
-          <MerchantSectionPlaceholder
-            titleKey="merchant.placeholders.ordersTitle"
-            descKey="merchant.placeholders.ordersDesc"
-          />
+          <LazyRoute>
+            <MerchantOrdersPage />
+          </LazyRoute>
         ),
       },
       {
         path: 'customers',
         element: (
-          <MerchantSectionPlaceholder
-            titleKey="merchant.placeholders.customersTitle"
-            descKey="merchant.placeholders.customersDesc"
-          />
+          <LazyRoute>
+            <MerchantCustomersPage />
+          </LazyRoute>
         ),
       },
       {
         path: 'settings',
         element: (
-          <MerchantSectionPlaceholder
-            titleKey="merchant.placeholders.settingsTitle"
-            descKey="merchant.placeholders.settingsDesc"
-          />
+          <LazyRoute>
+            <MerchantSettingsPage />
+          </LazyRoute>
         ),
       },
     ],
   },
   {
     path: '/s/:shopSlug',
-    element: <StorefrontLayout />,
+    element: (
+      <LazyRoute>
+        <StorefrontLayout />
+      </LazyRoute>
+    ),
     children: [
-      { index: true, element: <StorefrontCatalogPage /> },
-      { path: 'cart', element: <StorefrontCartPlaceholder /> },
-      { path: 'orders', element: <StorefrontOrdersPlaceholder /> },
+      {
+        index: true,
+        element: (
+          <LazyRoute>
+            <StorefrontCatalogPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'cart',
+        element: (
+          <LazyRoute>
+            <StorefrontCartPlaceholder />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'orders',
+        element: (
+          <LazyRoute>
+            <StorefrontOrdersPlaceholder />
+          </LazyRoute>
+        ),
+      },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },
