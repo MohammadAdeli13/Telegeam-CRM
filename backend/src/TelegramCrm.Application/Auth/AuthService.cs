@@ -112,8 +112,13 @@ public sealed class AuthService
                 _db.Tenants.IgnoreQueryFilters(),
                 m => m.TenantId,
                 t => t.Id,
-                (m, t) => new TenantSummary(t.Id, t.Slug, t.Name, m.Role.ToString()))
-            .OrderBy(t => t.Name)
+                (m, t) => new { Member = m, Tenant = t })
+            .OrderBy(x => x.Tenant.Name)
+            .Select(x => new TenantSummary(
+                x.Tenant.Id,
+                x.Tenant.Slug,
+                x.Tenant.Name,
+                x.Member.Role.ToString()))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }

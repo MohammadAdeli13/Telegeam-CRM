@@ -36,6 +36,12 @@ public sealed class TelegramAuthOptions
 /// </summary>
 public sealed class TelegramInitDataValidator
 {
+    /// <summary>
+    /// How far in the future <c>auth_date</c> may be before the payload is rejected.
+    /// Telegram and the API are separate clocks, so a small skew is legitimate.
+    /// </summary>
+    public static readonly TimeSpan FutureAuthDateTolerance = TimeSpan.FromSeconds(60);
+
     private readonly IClock _clock;
     private readonly TelegramAuthOptions _options;
 
@@ -87,10 +93,19 @@ public sealed class TelegramInitDataValidator
         }
 
         var authDate = DateTimeOffset.FromUnixTimeSeconds(authDateUnix);
+        var now = _clock.UtcNow;
         var maxAge = TimeSpan.FromSeconds(_options.InitDataMaxAgeSeconds);
-        if (_clock.UtcNow - authDate > maxAge)
+        if (now - authDate > maxAge)
         {
             return Invalid("init_data_expired");
+        }
+
+        // A payload signed in the future is not a legitimate Telegram payload: it would
+        // otherwise stay valid for the whole replay window from a point that has not
+        // happened yet. A small tolerance absorbs clock skew between Telegram and us.
+        if (authDate - now > FutureAuthDateTolerance)
+        {
+            return Invalid("init_data_auth_date_in_future");
         }
 
         if (!pairs.TryGetValue("user", out var userJson) || string.IsNullOrWhiteSpace(userJson))

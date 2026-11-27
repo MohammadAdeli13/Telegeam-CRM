@@ -80,6 +80,12 @@ public sealed partial class ExceptionHandlingMiddleware
                 "Invalid order status transition.",
                 new Dictionary<string, object?> { ["currentStatus"] = invalid.From.ToString() }),
 
+            NotFoundException notFound => (
+                StatusCodes.Status404NotFound,
+                notFound.Code,
+                "Resource not found.",
+                new Dictionary<string, object?>()),
+
             DomainException domain => (
                 StatusFor(domain.Code),
                 domain.Code,
@@ -109,6 +115,7 @@ public sealed partial class ExceptionHandlingMiddleware
     {
         "init_data_missing" or "init_data_malformed" or "init_data_hash_missing" or
         "init_data_invalid_hash" or "init_data_auth_date_missing" or "init_data_expired" or
+        "init_data_auth_date_in_future" or
         "init_data_user_missing" or "init_data_user_malformed" or "bot_token_not_configured"
             => StatusCodes.Status401Unauthorized,
 
@@ -117,7 +124,12 @@ public sealed partial class ExceptionHandlingMiddleware
         "user_not_found" => StatusCodes.Status401Unauthorized,
 
         "slug_taken" or "invalid_status_transition" or "concurrency_conflict" or "insufficient_stock"
+            or "category_in_use" or "product_in_use" or "customer_exists" or "tag_exists"
             => StatusCodes.Status409Conflict,
+
+        "unsupported_media_type" => StatusCodes.Status415UnsupportedMediaType,
+
+        "empty_file" or "file_too_large" => StatusCodes.Status422UnprocessableEntity,
 
         _ => StatusCodes.Status422UnprocessableEntity,
     };

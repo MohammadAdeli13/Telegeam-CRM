@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using TelegramCrm.Domain.Entities;
 
 namespace TelegramCrm.Application.Common;
@@ -37,6 +38,12 @@ public interface IAppDbContext
     DbSet<OutboxMessage> OutboxMessages { get; }
 
     DbSet<ShopSetting> ShopSettings { get; }
+
+    /// <summary>
+    /// Relational database facade, used for explicit transactions and set-based atomic
+    /// updates (stock decrement / restore, contract v1.2 §3.3–§3.4).
+    /// </summary>
+    DatabaseFacade Database { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
