@@ -101,7 +101,7 @@ public sealed class TelegramInitDataValidator
         TelegramInitDataUser? user;
         try
         {
-            user = JsonSerializer.Deserialize<TelegramInitDataUser>(userJson, JsonOptions);
+            user = JsonSerializer.Deserialize<TelegramInitDataUser>(userJson, _jsonOptions);
         }
         catch (JsonException)
         {
@@ -116,7 +116,7 @@ public sealed class TelegramInitDataValidator
         return new TelegramInitDataValidationResult(true, null, user, authDate);
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         // Telegram sends snake_case (first_name, language_code); the DTO is PascalCase.

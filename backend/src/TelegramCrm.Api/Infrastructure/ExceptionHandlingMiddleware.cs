@@ -73,37 +73,37 @@ public sealed partial class ExceptionHandlingMiddleware
 
     private static (int Status, string Code, string Title, Dictionary<string, object?> Extensions) Map(
         Exception exception) => exception switch
-    {
-        InvalidOrderStatusTransitionException invalid => (
-            StatusCodes.Status409Conflict,
-            invalid.Code,
-            "Invalid order status transition.",
-            new Dictionary<string, object?> { ["currentStatus"] = invalid.From.ToString() }),
+        {
+            InvalidOrderStatusTransitionException invalid => (
+                StatusCodes.Status409Conflict,
+                invalid.Code,
+                "Invalid order status transition.",
+                new Dictionary<string, object?> { ["currentStatus"] = invalid.From.ToString() }),
 
-        DomainException domain => (
-            StatusFor(domain.Code),
-            domain.Code,
-            "Request could not be completed.",
-            new Dictionary<string, object?>()),
+            DomainException domain => (
+                StatusFor(domain.Code),
+                domain.Code,
+                "Request could not be completed.",
+                new Dictionary<string, object?>()),
 
-        TenantIsolationException => (
-            StatusCodes.Status403Forbidden,
-            "tenant_isolation_violation",
-            "Tenant isolation violation.",
-            new Dictionary<string, object?>()),
+            TenantIsolationException => (
+                StatusCodes.Status403Forbidden,
+                "tenant_isolation_violation",
+                "Tenant isolation violation.",
+                new Dictionary<string, object?>()),
 
-        UnauthorizedAccessException => (
-            StatusCodes.Status403Forbidden,
-            "forbidden",
-            "Forbidden.",
-            new Dictionary<string, object?>()),
+            UnauthorizedAccessException => (
+                StatusCodes.Status403Forbidden,
+                "forbidden",
+                "Forbidden.",
+                new Dictionary<string, object?>()),
 
-        _ => (
-            StatusCodes.Status500InternalServerError,
-            "internal_error",
-            "An unexpected error occurred.",
-            new Dictionary<string, object?>()),
-    };
+            _ => (
+                StatusCodes.Status500InternalServerError,
+                "internal_error",
+                "An unexpected error occurred.",
+                new Dictionary<string, object?>()),
+        };
 
     private static int StatusFor(string code) => code switch
     {

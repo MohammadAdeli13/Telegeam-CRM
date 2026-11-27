@@ -12,7 +12,7 @@ namespace TelegramCrm.IntegrationTests.Api;
 /// </summary>
 public sealed class ApiEndpointTests : IClassFixture<CrmApiFactory>
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
 
     private readonly CrmApiFactory _factory;
 
@@ -29,7 +29,7 @@ public sealed class ApiEndpointTests : IClassFixture<CrmApiFactory>
         var response = await client.GetAsync(new Uri("/api/v1/health", UriKind.Relative));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<HealthDto>(Json);
+        var body = await response.Content.ReadFromJsonAsync<HealthDto>(_json);
         Assert.NotNull(body);
         Assert.Equal("healthy", body!.Status);
         Assert.Equal("up", body.Database);
@@ -45,7 +45,7 @@ public sealed class ApiEndpointTests : IClassFixture<CrmApiFactory>
             new { initData = InitDataBuilder.Build(telegramUserId: 1001) });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<AuthDto>(Json);
+        var body = await response.Content.ReadFromJsonAsync<AuthDto>(_json);
         Assert.NotNull(body);
         Assert.False(string.IsNullOrWhiteSpace(body!.AccessToken));
         Assert.Equal(1001, body.User.TelegramUserId);
@@ -63,7 +63,7 @@ public sealed class ApiEndpointTests : IClassFixture<CrmApiFactory>
             new { initData = InitDataBuilder.Build(tamperAfterSigning: true) });
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDto>(Json);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDto>(_json);
         Assert.Equal("init_data_invalid_hash", problem!.Code);
     }
 
@@ -77,7 +77,7 @@ public sealed class ApiEndpointTests : IClassFixture<CrmApiFactory>
             new { initData = InitDataBuilder.Build(authDate: DateTimeOffset.UtcNow.AddHours(-25)) });
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDto>(Json);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDto>(_json);
         Assert.Equal("init_data_expired", problem!.Code);
     }
 
@@ -100,7 +100,7 @@ public sealed class ApiEndpointTests : IClassFixture<CrmApiFactory>
             new Uri("/api/v1/auth/telegram", UriKind.Relative),
             new { initData = InitDataBuilder.Build(telegramUserId: 2002) });
 
-        var auth = await login.Content.ReadFromJsonAsync<AuthDto>(Json);
+        var auth = await login.Content.ReadFromJsonAsync<AuthDto>(_json);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.AccessToken);
 
         var slug = $"shop-{Guid.NewGuid():N}"[..20];
@@ -111,7 +111,7 @@ public sealed class ApiEndpointTests : IClassFixture<CrmApiFactory>
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
 
         var mine = await client.GetFromJsonAsync<List<MerchantDto>>(
-            new Uri("/api/v1/merchants/mine", UriKind.Relative), Json);
+            new Uri("/api/v1/merchants/mine", UriKind.Relative), _json);
 
         Assert.NotNull(mine);
         Assert.Contains(mine!, m => m.Slug == slug && m.Role == "MerchantOwner");
@@ -126,7 +126,7 @@ public sealed class ApiEndpointTests : IClassFixture<CrmApiFactory>
             new Uri("/api/v1/auth/telegram", UriKind.Relative),
             new { initData = InitDataBuilder.Build(telegramUserId: 3003) });
 
-        var auth = await login.Content.ReadFromJsonAsync<AuthDto>(Json);
+        var auth = await login.Content.ReadFromJsonAsync<AuthDto>(_json);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.AccessToken);
 
         var response = await client.PostAsJsonAsync(

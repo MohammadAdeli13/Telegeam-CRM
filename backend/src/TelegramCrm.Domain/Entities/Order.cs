@@ -10,7 +10,7 @@ namespace TelegramCrm.Domain.Entities;
 /// </summary>
 public class Order : Entity, ITenantOwned
 {
-    private static readonly Dictionary<OrderStatus, OrderStatus[]> AllowedEdges = new()
+    private static readonly Dictionary<OrderStatus, OrderStatus[]> _allowedEdges = new()
     {
         [OrderStatus.Pending] = [OrderStatus.Confirmed, OrderStatus.Cancelled],
         [OrderStatus.Confirmed] = [OrderStatus.Preparing, OrderStatus.Cancelled],
@@ -42,7 +42,7 @@ public class Order : Entity, ITenantOwned
 
     /// <summary>True when the target state is one of the legal edges from <paramref name="from"/>.</summary>
     public static bool CanTransition(OrderStatus from, OrderStatus to) =>
-        AllowedEdges.TryGetValue(from, out var targets) && Array.IndexOf(targets, to) >= 0;
+        _allowedEdges.TryGetValue(from, out var targets) && Array.IndexOf(targets, to) >= 0;
 
     /// <summary>True when entering <paramref name="status"/> must restore stock (contract v1.2 §3.4).</summary>
     public static bool RestoresStock(OrderStatus status) => status == OrderStatus.Cancelled;

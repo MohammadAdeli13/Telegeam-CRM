@@ -12,10 +12,10 @@ namespace TelegramCrm.UnitTests.Auth;
 /// </summary>
 public sealed class TelegramInitDataValidatorTests
 {
-    private static readonly DateTimeOffset Now = new(2026, 11, 27, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset _now = new(2026, 11, 27, 10, 0, 0, TimeSpan.Zero);
 
     private static TelegramInitDataValidator CreateValidator(int maxAgeSeconds = 86400) =>
-        new(new FixedClock(Now), Options.Create(new TelegramAuthOptions
+        new(new FixedClock(_now), Options.Create(new TelegramAuthOptions
         {
             InitDataMaxAgeSeconds = maxAgeSeconds,
         }));
@@ -23,7 +23,7 @@ public sealed class TelegramInitDataValidatorTests
     [Fact]
     public void Validate_WithCorrectlySignedInitData_ReturnsUser()
     {
-        var initData = InitDataBuilder.Build(telegramUserId: 777, authDate: Now.AddMinutes(-5));
+        var initData = InitDataBuilder.Build(telegramUserId: 777, authDate: _now.AddMinutes(-5));
 
         var result = CreateValidator().Validate(initData, InitDataBuilder.BotToken);
 
@@ -37,7 +37,7 @@ public sealed class TelegramInitDataValidatorTests
     [Fact]
     public void Validate_WhenPayloadIsTamperedAfterSigning_RejectsWithInvalidHash()
     {
-        var initData = InitDataBuilder.Build(authDate: Now.AddMinutes(-5), tamperAfterSigning: true);
+        var initData = InitDataBuilder.Build(authDate: _now.AddMinutes(-5), tamperAfterSigning: true);
 
         var result = CreateValidator().Validate(initData, InitDataBuilder.BotToken);
 
@@ -50,7 +50,7 @@ public sealed class TelegramInitDataValidatorTests
     public void Validate_WhenHashIsReplaced_RejectsWithInvalidHash()
     {
         var initData = InitDataBuilder.Build(
-            authDate: Now.AddMinutes(-5),
+            authDate: _now.AddMinutes(-5),
             overrideHash: new string('a', 64));
 
         var result = CreateValidator().Validate(initData, InitDataBuilder.BotToken);
@@ -63,7 +63,7 @@ public sealed class TelegramInitDataValidatorTests
     public void Validate_WhenSignedWithAnotherBotToken_RejectsWithInvalidHash()
     {
         var initData = InitDataBuilder.Build(
-            authDate: Now.AddMinutes(-5),
+            authDate: _now.AddMinutes(-5),
             botToken: "999999999:AAHsome-other-bot-token-value");
 
         var result = CreateValidator().Validate(initData, InitDataBuilder.BotToken);
@@ -75,7 +75,7 @@ public sealed class TelegramInitDataValidatorTests
     [Fact]
     public void Validate_WhenAuthDateIsOlderThanTheWindow_RejectsAsExpired()
     {
-        var initData = InitDataBuilder.Build(authDate: Now.AddHours(-25));
+        var initData = InitDataBuilder.Build(authDate: _now.AddHours(-25));
 
         var result = CreateValidator(maxAgeSeconds: 86400).Validate(initData, InitDataBuilder.BotToken);
 
@@ -86,7 +86,7 @@ public sealed class TelegramInitDataValidatorTests
     [Fact]
     public void Validate_WhenAuthDateIsInsideTheWindow_Accepts()
     {
-        var initData = InitDataBuilder.Build(authDate: Now.AddHours(-23));
+        var initData = InitDataBuilder.Build(authDate: _now.AddHours(-23));
 
         var result = CreateValidator(maxAgeSeconds: 86400).Validate(initData, InitDataBuilder.BotToken);
 
@@ -96,7 +96,7 @@ public sealed class TelegramInitDataValidatorTests
     [Fact]
     public void Validate_WhenWindowIsLowered_RejectsAnOtherwiseFreshPayload()
     {
-        var initData = InitDataBuilder.Build(authDate: Now.AddMinutes(-10));
+        var initData = InitDataBuilder.Build(authDate: _now.AddMinutes(-10));
 
         var result = CreateValidator(maxAgeSeconds: 300).Validate(initData, InitDataBuilder.BotToken);
 
@@ -116,7 +116,7 @@ public sealed class TelegramInitDataValidatorTests
     [Fact]
     public void Validate_WhenBotTokenIsMissing_Rejects()
     {
-        var initData = InitDataBuilder.Build(authDate: Now);
+        var initData = InitDataBuilder.Build(authDate: _now);
 
         var result = CreateValidator().Validate(initData, botToken: null);
 

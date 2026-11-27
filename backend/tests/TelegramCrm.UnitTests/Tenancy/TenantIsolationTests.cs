@@ -12,8 +12,8 @@ namespace TelegramCrm.UnitTests.Tenancy;
 /// </summary>
 public sealed class TenantIsolationTests
 {
-    private static readonly Guid TenantA = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    private static readonly Guid TenantB = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid _tenantA = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid _tenantB = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
     [Fact]
     public async Task QueryFilter_HidesTenantBRowsFromTenantA()
@@ -23,29 +23,29 @@ public sealed class TenantIsolationTests
 
         await using (var seed = CreateContext(database, context))
         {
-            context.SetTenant(TenantA);
-            seed.Categories.Add(NewCategory(TenantA, "a-category"));
+            context.SetTenant(_tenantA);
+            seed.Categories.Add(NewCategory(_tenantA, "a-category"));
             await seed.SaveChangesAsync();
 
-            context.SetTenant(TenantB);
-            seed.Categories.Add(NewCategory(TenantB, "b-category"));
+            context.SetTenant(_tenantB);
+            seed.Categories.Add(NewCategory(_tenantB, "b-category"));
             await seed.SaveChangesAsync();
         }
 
         await using var read = CreateContext(database, context);
 
-        context.SetTenant(TenantA);
+        context.SetTenant(_tenantA);
         var visibleToA = await read.Categories.ToListAsync();
 
         Assert.Single(visibleToA);
-        Assert.All(visibleToA, c => Assert.Equal(TenantA, c.TenantId));
+        Assert.All(visibleToA, c => Assert.Equal(_tenantA, c.TenantId));
         Assert.DoesNotContain(visibleToA, c => c.Slug == "b-category");
 
-        context.SetTenant(TenantB);
+        context.SetTenant(_tenantB);
         var visibleToB = await read.Categories.ToListAsync();
 
         Assert.Single(visibleToB);
-        Assert.All(visibleToB, c => Assert.Equal(TenantB, c.TenantId));
+        Assert.All(visibleToB, c => Assert.Equal(_tenantB, c.TenantId));
     }
 
     [Fact]
@@ -56,8 +56,8 @@ public sealed class TenantIsolationTests
 
         await using (var seed = CreateContext(database, context))
         {
-            context.SetTenant(TenantA);
-            seed.Products.Add(NewProduct(TenantA));
+            context.SetTenant(_tenantA);
+            seed.Products.Add(NewProduct(_tenantA));
             await seed.SaveChangesAsync();
         }
 
@@ -74,7 +74,7 @@ public sealed class TenantIsolationTests
         await using var db = CreateContext(Guid.NewGuid().ToString(), context);
 
         context.SetTenant(null);
-        db.Categories.Add(NewCategory(TenantA, "orphan"));
+        db.Categories.Add(NewCategory(_tenantA, "orphan"));
 
         await Assert.ThrowsAsync<TenantIsolationException>(() => db.SaveChangesAsync());
     }
@@ -85,8 +85,8 @@ public sealed class TenantIsolationTests
         var context = new MutableTenantContext();
         await using var db = CreateContext(Guid.NewGuid().ToString(), context);
 
-        context.SetTenant(TenantA);
-        db.Categories.Add(NewCategory(TenantB, "smuggled"));
+        context.SetTenant(_tenantA);
+        db.Categories.Add(NewCategory(_tenantB, "smuggled"));
 
         await Assert.ThrowsAsync<TenantIsolationException>(() => db.SaveChangesAsync());
     }
@@ -97,13 +97,13 @@ public sealed class TenantIsolationTests
         var context = new MutableTenantContext();
         await using var db = CreateContext(Guid.NewGuid().ToString(), context);
 
-        context.SetTenant(TenantA);
+        context.SetTenant(_tenantA);
         var category = NewCategory(Guid.Empty, "stamped");
         db.Categories.Add(category);
 
         await db.SaveChangesAsync();
 
-        Assert.Equal(TenantA, category.TenantId);
+        Assert.Equal(_tenantA, category.TenantId);
     }
 
     [Fact]
@@ -115,18 +115,18 @@ public sealed class TenantIsolationTests
 
         await using (var seed = CreateContext(database, context))
         {
-            context.SetTenant(TenantA);
-            var category = NewCategory(TenantA, "movable");
+            context.SetTenant(_tenantA);
+            var category = NewCategory(_tenantA, "movable");
             seed.Categories.Add(category);
             await seed.SaveChangesAsync();
             categoryId = category.Id;
         }
 
         await using var db = CreateContext(database, context);
-        context.SetTenant(TenantA);
+        context.SetTenant(_tenantA);
 
         var loaded = await db.Categories.SingleAsync(c => c.Id == categoryId);
-        loaded.TenantId = TenantB;
+        loaded.TenantId = _tenantB;
 
         await Assert.ThrowsAsync<TenantIsolationException>(() => db.SaveChangesAsync());
     }
@@ -140,15 +140,15 @@ public sealed class TenantIsolationTests
 
         await using (var seed = CreateContext(database, context))
         {
-            context.SetTenant(TenantB);
-            var product = NewProduct(TenantB);
+            context.SetTenant(_tenantB);
+            var product = NewProduct(_tenantB);
             seed.Products.Add(product);
             await seed.SaveChangesAsync();
             tenantBProductId = product.Id;
         }
 
         await using var read = CreateContext(database, context);
-        context.SetTenant(TenantA);
+        context.SetTenant(_tenantA);
 
         // The contract requires 404 (not 403) for cross-tenant access: the row is invisible.
         var found = await read.Products.FirstOrDefaultAsync(p => p.Id == tenantBProductId);
