@@ -164,8 +164,7 @@ public sealed class TelegramInitDataValidator
         string.Join(
             '\n',
             pairs
-                .Where(p => !string.Equals(p.Key, "hash", StringComparison.Ordinal) &&
-                            !string.Equals(p.Key, "signature", StringComparison.Ordinal))
+                .Where(p => !string.Equals(p.Key, "hash", StringComparison.Ordinal))
                 .OrderBy(p => p.Key, StringComparer.Ordinal)
                 .Select(p => $"{p.Key}={p.Value}"));
 
