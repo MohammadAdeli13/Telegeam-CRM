@@ -38,18 +38,28 @@ const StorefrontLayout = lazy(() =>
   import('@/features/storefront/StorefrontLayout').then((m) => ({ default: m.StorefrontLayout })),
 );
 const StorefrontCatalogPage = lazy(() =>
-  import('@/features/storefront/StorefrontPages').then((m) => ({
+  import('@/features/storefront/StorefrontCatalogPage').then((m) => ({
     default: m.StorefrontCatalogPage,
   })),
 );
-const StorefrontCartPlaceholder = lazy(() =>
-  import('@/features/storefront/StorefrontPages').then((m) => ({
-    default: m.StorefrontCartPlaceholder,
+const StorefrontProductDetailPage = lazy(() =>
+  import('@/features/storefront/StorefrontProductDetailPage').then((m) => ({
+    default: m.StorefrontProductDetailPage,
   })),
 );
-const StorefrontOrdersPlaceholder = lazy(() =>
-  import('@/features/storefront/StorefrontPages').then((m) => ({
-    default: m.StorefrontOrdersPlaceholder,
+const StorefrontCartPage = lazy(() =>
+  import('@/features/storefront/StorefrontCartPage').then((m) => ({
+    default: m.StorefrontCartPage,
+  })),
+);
+const StorefrontOrdersPage = lazy(() =>
+  import('@/features/storefront/StorefrontOrdersPage').then((m) => ({
+    default: m.StorefrontOrdersPage,
+  })),
+);
+const StorefrontOrderDetailPage = lazy(() =>
+  import('@/features/storefront/StorefrontOrderDetailPage').then((m) => ({
+    default: m.StorefrontOrderDetailPage,
   })),
 );
 
@@ -124,10 +134,18 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'products/:productId',
+        element: (
+          <LazyRoute>
+            <StorefrontProductDetailPage />
+          </LazyRoute>
+        ),
+      },
+      {
         path: 'cart',
         element: (
           <LazyRoute>
-            <StorefrontCartPlaceholder />
+            <StorefrontCartPage />
           </LazyRoute>
         ),
       },
@@ -135,7 +153,15 @@ export const router = createBrowserRouter([
         path: 'orders',
         element: (
           <LazyRoute>
-            <StorefrontOrdersPlaceholder />
+            <StorefrontOrdersPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'orders/:orderId',
+        element: (
+          <LazyRoute>
+            <StorefrontOrderDetailPage />
           </LazyRoute>
         ),
       },
