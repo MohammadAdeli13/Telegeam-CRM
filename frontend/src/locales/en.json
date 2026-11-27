@@ -1,0 +1,110 @@
+{
+  "app": {
+    "name": "Telegram CRM",
+    "tagline": "Manage your Telegram shop and orders",
+    "skipToContent": "Skip to main content",
+    "loading": "Loading...",
+    "retry": "Try again",
+    "errorTitle": "Something went wrong",
+    "errorGeneric": "We could not reach the server. Please try again.",
+    "emptyTitle": "Nothing here yet",
+    "languageToggle": "Switch language",
+    "themeToggle": "Toggle light/dark theme",
+    "dark": "Dark",
+    "light": "Light",
+    "persian": "فارسی",
+    "english": "English"
+  },
+  "auth": {
+    "authenticating": "Signing in with Telegram...",
+    "outsideTelegramTitle": "Open inside Telegram Mini App",
+    "outsideTelegramDesc": "This web app is built to run inside Telegram. You can open a public storefront or sign in during local development.",
+    "reopenTitle": "Session expired",
+    "reopenDesc": "Please close and re-open this Mini App from Telegram.",
+    "retryAuth": "Retry sign-in",
+    "openStorefrontTitle": "Browse a Storefront",
+    "shopSlugLabel": "Shop slug",
+    "shopSlugPlaceholder": "e.g. coffee-shop",
+    "openStorefrontCta": "Open storefront",
+    "devInitDataLabel": "Signed initData (dev)",
+    "devInitDataPlaceholder": "Paste signed Telegram initData query string",
+    "devSignInCta": "Sign in with initData",
+    "selectShopTitle": "Choose a shop",
+    "selectShopDesc": "Select which shop you want to manage.",
+    "createNewShop": "Create a new shop",
+    "signOut": "Sign out",
+    "failed": "Authentication failed."
+  },
+  "onboarding": {
+    "title": "Create your shop",
+    "subtitle": "Launch your Telegram storefront and CRM in seconds.",
+    "nameLabel": "Shop name",
+    "namePlaceholder": "e.g. Noor Gallery",
+    "slugLabel": "Unique slug",
+    "slugHelper": "Lowercase letters, digits, and hyphens only (3-40 chars)",
+    "slugPlaceholder": "noor-gallery",
+    "languageLabel": "Default language",
+    "currencyLabel": "Currency",
+    "submit": "Create shop & open dashboard",
+    "submitting": "Creating shop...",
+    "slugTaken": "This slug is already taken.",
+    "validationName": "Shop name must be between 2 and 120 characters.",
+    "validationSlug": "Slug must be 3-40 lowercase letters, digits, or hyphens."
+  },
+  "merchant": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "products": "Products",
+      "orders": "Orders",
+      "customers": "Customers",
+      "settings": "Settings"
+    },
+    "switchShop": "Switch shop",
+    "previewStorefront": "Storefront",
+    "copyShopLink": "Copy shop link",
+    "linkCopied": "Copied",
+    "dashboard": {
+      "title": "Shop overview",
+      "apiStatus": "API status",
+      "apiHealthy": "Healthy & connected",
+      "apiOffline": "Unavailable",
+      "activeShop": "Active shop",
+      "quickActions": "Quick actions",
+      "manageProducts": "Manage products & inventory",
+      "manageOrders": "Track and update orders",
+      "manageCustomers": "Customer directory & tags",
+      "shellReadyNotice": "Merchant shell is live and wired to the typed API client. Full CRUD workspaces land in Phase P4."
+    },
+    "placeholders": {
+      "productsTitle": "Products & Categories",
+      "productsDesc": "Full product CRUD, image uploads, and atomic stock adjustments will land here in Phase P4.",
+      "ordersTitle": "Orders",
+      "ordersDesc": "Order list, status filters, and state-machine transitions will land here in Phase P4.",
+      "customersTitle": "CRM Customers",
+      "customersDesc": "Customer directory, purchase history, tags, and private notes will land here in Phase P4.",
+      "settingsTitle": "Shop Settings",
+      "settingsDesc": "Manage language, currency, and custom shop settings."
+    }
+  },
+  "storefront": {
+    "nav": {
+      "shop": "Shop",
+      "cart": "Cart",
+      "orders": "My Orders"
+    },
+    "allCategories": "All",
+    "searchLabel": "Search products",
+    "searchPlaceholder": "Search by product name...",
+    "inStock": "In stock ({{count}})",
+    "outOfStock": "Out of stock",
+    "emptyProducts": "No active products are available in this shop yet.",
+    "shopNotFoundTitle": "Shop not found",
+    "shopNotFoundDesc": "This shop link is invalid or the shop is currently inactive.",
+    "backHome": "Back to home",
+    "cartTitle": "Shopping cart",
+    "cartEmpty": "Your cart is empty.",
+    "myOrdersTitle": "My orders",
+    "myOrdersLoginRequired": "Open this storefront inside Telegram to view your orders.",
+    "myOrdersEmpty": "You have not placed any orders in this shop yet."
+  }
+}
