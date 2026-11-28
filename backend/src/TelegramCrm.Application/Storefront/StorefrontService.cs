@@ -11,9 +11,9 @@ using TelegramCrm.Domain.Exceptions;
 namespace TelegramCrm.Application.Storefront;
 
 /// <summary>
-/// Customer storefront catalog, cart validation and idempotent order placement
-/// (contract v1.2 §4.4). Every call runs under the tenant resolved from <c>{shopSlug}</c>
-/// by <c>StorefrontTenantFilter</c>, so EF Core global filters isolate all queries.
+/// Customer storefront catalog, shipping options, cart validation, and idempotent order
+/// placement (contract v1.2 §4.4). Every call runs under the tenant resolved from
+/// <c>{shopSlug}</c> by <c>StorefrontTenantFilter</c>, so EF Core global filters isolate all queries.
 /// </summary>
 public sealed class StorefrontService
 {
@@ -64,7 +64,37 @@ public sealed class StorefrontService
                 : _storage.GetPublicUrl(tenant.LogoStoragePath),
             string.IsNullOrWhiteSpace(tenant.DefaultProductImageStoragePath)
                 ? null
-                : _storage.GetPublicUrl(tenant.DefaultProductImageStoragePath));
+                : _storage.GetPublicUrl(tenant.DefaultProductImageStoragePath),
+            tenant.RequireOrderApproval,
+            tenant.EnableCardToCard,
+            tenant.EnablePayOnDelivery,
+            tenant.EnableCardToCard ? tenant.CardNumber : null,
+            tenant.EnableCardToCard ? tenant.CardHolderName : null,
+            tenant.EnableCardToCard ? tenant.BankName : null,
+            tenant.PaymentExpiryMinutes);
+    }
+
+    public async Task<IReadOnlyList<StorefrontShippingMethodDto>> ListShippingMethodsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        _ = RequireTenantId();
+
+        return await _db.ShippingMethods
+            .AsNoTracking()
+            .Where(m => m.IsActive)
+            .OrderBy(m => m.SortOrder)
+            .ThenBy(m => m.Name)
+            .Select(m => new StorefrontShippingMethodDto(
+                m.Id,
+                m.Name,
+                m.Description,
+                m.Price,
+                m.FreeAboveAmount,
+                m.IsPayAtDestination,
+                m.EstimatedDaysText,
+                m.SortOrder))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<StorefrontCategoryDto>> ListCategoriesAsync(
@@ -192,7 +222,7 @@ public sealed class StorefrontService
             .ConfigureAwait(false);
 
         var validatedLines = new List<ValidatedCartLineDto>(merged.Count);
-        decimal totalAmount = 0m;
+        decimal subtotalAmount = 0m;
         var allValid = true;
 
         foreach (var line in merged)
@@ -228,7 +258,7 @@ public sealed class StorefrontService
                 continue;
             }
 
-            totalAmount += lineTotal;
+            subtotalAmount += lineTotal;
             validatedLines.Add(new ValidatedCartLineDto(
                 product.Id,
                 product.Name,
@@ -240,13 +270,41 @@ public sealed class StorefrontService
                 null));
         }
 
-        return new CartValidationResponse(allValid, totalAmount, shop.Currency, validatedLines);
+        decimal shippingAmount = 0m;
+        var isPayAtDestination = false;
+
+        if (request.ShippingMethodId.HasValue)
+        {
+            var shippingMethod = await _db.ShippingMethods
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    m => m.Id == request.ShippingMethodId.Value && m.IsActive,
+                    cancellationToken)
+                .ConfigureAwait(false)
+                ?? throw new DomainException(
+                    "shipping_method_not_found",
+                    "The selected shipping method is not available.");
+
+            isPayAtDestination = shippingMethod.IsPayAtDestination;
+            shippingAmount = ComputeShippingCost(shippingMethod, subtotalAmount);
+        }
+
+        var totalAmount = subtotalAmount + shippingAmount;
+
+        return new CartValidationResponse(
+            allValid,
+            subtotalAmount,
+            shippingAmount,
+            isPayAtDestination,
+            totalAmount,
+            shop.Currency,
+            validatedLines);
     }
 
     /// <summary>
-    /// Places an order atomically with a mandatory <c>Idempotency-Key</c>. Returns
-    /// <c>Created = true</c> on first execution and <c>Created = false</c> on idempotent
-    /// replay without decrementing stock a second time.
+    /// Places an order atomically with a mandatory <c>Idempotency-Key</c>. Resolves optional
+    /// saved address snapshot, shipping method &amp; fee, payment method &amp; expiry, sequential
+    /// <c>OrderNumber</c>, and automatic confirmation according to <c>Tenant.RequireOrderApproval</c>.
     /// </summary>
     public async Task<(OrderDetailDto Order, bool Created)> PlaceOrderAsync(
         PlaceOrderRequest request,
@@ -264,6 +322,7 @@ public sealed class StorefrontService
                 $"Header 'Idempotency-Key' is required and must be at most {MaxIdempotencyKeyLength} characters.");
         }
 
+        var paymentMethod = ParsePaymentMethod(request.PaymentMethod);
         var normalizedKey = idempotencyKey.Trim();
         var merged = MergeLines(request.Items);
         var customer = await GetOrCreateCustomerAsync(tenantId, telegramUserId, request.Phone, cancellationToken)
@@ -286,6 +345,34 @@ public sealed class StorefrontService
             return (existingDetail, false);
         }
 
+        // Validate optional customer address snapshot (must belong to caller in this tenant).
+        CustomerAddress? selectedAddress = null;
+        if (request.AddressId.HasValue)
+        {
+            selectedAddress = await _db.CustomerAddresses
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    a => a.Id == request.AddressId.Value && a.CustomerId == customer.Id,
+                    cancellationToken)
+                .ConfigureAwait(false)
+                ?? throw new NotFoundException("address_not_found", "Selected delivery address was not found.");
+        }
+
+        // Validate optional shipping method.
+        ShippingMethod? shippingMethod = null;
+        if (request.ShippingMethodId.HasValue)
+        {
+            shippingMethod = await _db.ShippingMethods
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    m => m.Id == request.ShippingMethodId.Value && m.IsActive,
+                    cancellationToken)
+                .ConfigureAwait(false)
+                ?? throw new DomainException(
+                    "shipping_method_not_found",
+                    "The selected shipping method is not available.");
+        }
+
         var isInMemory = IsInMemory();
         var transaction = isInMemory
             ? null
@@ -293,6 +380,12 @@ public sealed class StorefrontService
 
         try
         {
+            var tenant = await (isInMemory ? _db.Tenants : _db.Tenants.AsNoTracking())
+                .FirstAsync(t => t.Id == tenantId, cancellationToken)
+                .ConfigureAwait(false);
+
+            ValidatePaymentMethodAgainstTenant(paymentMethod, tenant);
+
             var productIds = merged.Select(m => m.ProductId).ToList();
             var productQuery = isInMemory ? _db.Products : _db.Products.AsNoTracking();
             var products = await productQuery
@@ -302,7 +395,7 @@ public sealed class StorefrontService
 
             var now = _clock.UtcNow;
             var orderItems = new List<OrderItem>(merged.Count);
-            decimal totalAmount = 0m;
+            decimal subtotalAmount = 0m;
 
             // Process in deterministic ProductId order to prevent row-lock deadlocks.
             foreach (var line in merged)
@@ -345,7 +438,7 @@ public sealed class StorefrontService
                     }
                 }
 
-                totalAmount += product.Price * line.Quantity;
+                subtotalAmount += product.Price * line.Quantity;
 
                 orderItems.Add(new OrderItem
                 {
@@ -360,10 +453,44 @@ public sealed class StorefrontService
                 });
             }
 
-            var tenant = await _db.Tenants
-                .AsNoTracking()
-                .FirstAsync(t => t.Id == tenantId, cancellationToken)
-                .ConfigureAwait(false);
+            // Allocate sequential per-tenant OrderNumber atomically inside the transaction.
+            int orderNumber;
+            if (isInMemory)
+            {
+                orderNumber = tenant.NextOrderNumber;
+                tenant.NextOrderNumber = orderNumber + 1;
+            }
+            else
+            {
+                await _db.Tenants
+                    .Where(t => t.Id == tenantId)
+                    .ExecuteUpdateAsync(
+                        setters => setters.SetProperty(t => t.NextOrderNumber, t => t.NextOrderNumber + 1),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                var nextValue = await _db.Tenants
+                    .AsNoTracking()
+                    .Where(t => t.Id == tenantId)
+                    .Select(t => t.NextOrderNumber)
+                    .FirstAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                orderNumber = nextValue - 1;
+            }
+
+            var shippingAmount = shippingMethod is null
+                ? 0m
+                : ComputeShippingCost(shippingMethod, subtotalAmount);
+            var totalAmount = subtotalAmount + shippingAmount;
+
+            var paymentStatus = paymentMethod == PaymentMethod.CardToCard
+                ? PaymentStatus.AwaitingReceipt
+                : PaymentStatus.NotRequired;
+
+            DateTimeOffset? paymentExpiresAt = paymentMethod == PaymentMethod.CardToCard
+                ? now.AddMinutes(Math.Max(5, tenant.PaymentExpiryMinutes))
+                : null;
 
             var merchantTelegramIds = await _db.TenantMembers
                 .AsNoTracking()
@@ -382,15 +509,27 @@ public sealed class StorefrontService
                 Id = orderId,
                 TenantId = tenantId,
                 CustomerId = customer.Id,
+                OrderNumber = orderNumber,
+                SubtotalAmount = subtotalAmount,
+                ShippingAmount = shippingAmount,
                 TotalAmount = totalAmount,
+                ShippingMethodId = shippingMethod?.Id,
+                ShippingMethodNameSnapshot = shippingMethod?.Name,
+                IsShippingPayAtDestination = shippingMethod?.IsPayAtDestination ?? false,
+                RecipientName = selectedAddress?.RecipientName,
+                RecipientPhone = selectedAddress?.Phone ?? (string.IsNullOrWhiteSpace(request.Phone) ? customer.Phone : request.Phone.Trim()),
+                ShippingProvince = selectedAddress?.Province,
+                ShippingCity = selectedAddress?.City,
+                ShippingAddressSnapshot = selectedAddress is null ? null : FormatAddressSnapshot(selectedAddress),
+                ShippingPostalCode = selectedAddress?.PostalCode,
+                PaymentMethod = paymentMethod,
+                PaymentStatus = paymentStatus,
+                PaymentExpiresAt = paymentExpiresAt,
                 Note = request.Note?.Trim(),
                 PlacedAt = now,
                 CreatedAt = now,
                 UpdatedAt = now,
             };
-
-            _db.Orders.Add(order);
-            _db.OrderItems.AddRange(orderItems);
 
             _db.OrderStatusHistories.Add(new OrderStatusHistory
             {
@@ -406,8 +545,33 @@ public sealed class StorefrontService
                 UpdatedAt = now,
             });
 
+            // Auto-confirm non-card-to-card orders when the shop does not require manual approval.
+            if (paymentMethod != PaymentMethod.CardToCard && !tenant.RequireOrderApproval)
+            {
+                order.TransitionTo(OrderStatus.Confirmed);
+
+                var confirmTimestamp = now.AddMilliseconds(1);
+                _db.OrderStatusHistories.Add(new OrderStatusHistory
+                {
+                    TenantId = tenantId,
+                    OrderId = orderId,
+                    FromStatus = OrderStatus.Pending,
+                    ToStatus = OrderStatus.Confirmed,
+                    ActorUserId = null,
+                    ActorRole = "System",
+                    Reason = "auto_confirmed",
+                    OccurredAt = confirmTimestamp,
+                    CreatedAt = confirmTimestamp,
+                    UpdatedAt = confirmTimestamp,
+                });
+            }
+
+            _db.Orders.Add(order);
+            _db.OrderItems.AddRange(orderItems);
+
             var payload = new OrderPlacedOutboxPayload(
                 orderId,
+                orderNumber,
                 tenantId,
                 tenant.Name,
                 tenant.Slug,
@@ -418,6 +582,8 @@ public sealed class StorefrontService
                 telegramUserId,
                 customer.DisplayName,
                 merchantTelegramIds,
+                shippingMethod?.Name,
+                paymentMethod.ToString(),
                 now);
 
             _db.OutboxMessages.Add(new OutboxMessage
@@ -512,10 +678,18 @@ public sealed class StorefrontService
             .Take(normalizedSize)
             .Select(o => new OrderSummaryDto(
                 o.Id,
+                o.OrderNumber,
                 o.CustomerId,
                 o.Customer != null ? o.Customer.DisplayName : null,
                 o.Status.ToString(),
+                o.SubtotalAmount,
+                o.ShippingAmount,
                 o.TotalAmount,
+                o.PaymentMethod.ToString(),
+                o.PaymentStatus.ToString(),
+                o.ShippingCity,
+                o.CarrierName,
+                o.TrackingCode,
                 o.Note,
                 o.PlacedAt,
                 o.RowVersion))
@@ -615,6 +789,70 @@ public sealed class StorefrontService
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return customer;
+    }
+
+    private static decimal ComputeShippingCost(ShippingMethod method, decimal subtotalAmount)
+    {
+        if (method.IsPayAtDestination)
+        {
+            return 0m;
+        }
+
+        if (method.FreeAboveAmount.HasValue && subtotalAmount >= method.FreeAboveAmount.Value)
+        {
+            return 0m;
+        }
+
+        return method.Price;
+    }
+
+    private static PaymentMethod ParsePaymentMethod(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return PaymentMethod.None;
+        }
+
+        if (!Enum.TryParse<PaymentMethod>(raw.Trim(), ignoreCase: true, out var parsed))
+        {
+            throw new DomainException("invalid_payment_method", $"Unknown payment method '{raw}'.");
+        }
+
+        return parsed;
+    }
+
+    private static void ValidatePaymentMethodAgainstTenant(PaymentMethod method, Tenant tenant)
+    {
+        if (method == PaymentMethod.CardToCard &&
+            (!tenant.EnableCardToCard || string.IsNullOrWhiteSpace(tenant.CardNumber)))
+        {
+            throw new DomainException(
+                "payment_method_not_enabled",
+                "Card-to-card payment is not enabled for this shop.");
+        }
+
+        if (method == PaymentMethod.PayOnDelivery && !tenant.EnablePayOnDelivery)
+        {
+            throw new DomainException(
+                "payment_method_not_enabled",
+                "Pay-on-delivery is not enabled for this shop.");
+        }
+    }
+
+    private static string FormatAddressSnapshot(CustomerAddress address)
+    {
+        var parts = new List<string> { address.Province, address.City, address.AddressLine };
+        if (!string.IsNullOrWhiteSpace(address.Plaque))
+        {
+            parts.Add($"پلاک {address.Plaque}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(address.Unit))
+        {
+            parts.Add($"واحد {address.Unit}");
+        }
+
+        return string.Join("، ", parts);
     }
 
     private static List<CartLineRequest> MergeLines(IReadOnlyList<CartLineRequest> items) =>

@@ -23,6 +23,48 @@ public sealed class UpdateMerchantShopRequestValidator : AbstractValidator<Updat
             .Must(ShopCurrencies.IsSupported)
             .WithMessage("Currency must be one of: IRT, IRR, USD, EUR.")
             .When(x => x.Currency is not null);
+
+        RuleFor(x => x.PaymentExpiryMinutes)
+            .InclusiveBetween(5, 10080)
+            .WithMessage("PaymentExpiryMinutes must be between 5 minutes and 7 days (10080).")
+            .When(x => x.PaymentExpiryMinutes.HasValue);
+
+        RuleFor(x => x.CardNumber)
+            .MaximumLength(32)
+            .Matches(@"^[0-9\-\s]{12,25}$")
+            .WithMessage("CardNumber must contain 12 to 25 digits, spaces, or hyphens.")
+            .When(x => !string.IsNullOrWhiteSpace(x.CardNumber));
+
+        RuleFor(x => x.CardHolderName).MaximumLength(120);
+        RuleFor(x => x.BankName).MaximumLength(80);
+    }
+}
+
+/// <summary>Validates <c>POST /merchant/shipping-methods</c>.</summary>
+public sealed class CreateShippingMethodRequestValidator : AbstractValidator<CreateShippingMethodRequest>
+{
+    public CreateShippingMethodRequestValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(120);
+        RuleFor(x => x.Description).MaximumLength(500);
+        RuleFor(x => x.Price).GreaterThanOrEqualTo(0m);
+        RuleFor(x => x.FreeAboveAmount).GreaterThanOrEqualTo(0m).When(x => x.FreeAboveAmount.HasValue);
+        RuleFor(x => x.EstimatedDaysText).MaximumLength(80);
+        RuleFor(x => x.SortOrder).GreaterThanOrEqualTo(0).When(x => x.SortOrder.HasValue);
+    }
+}
+
+/// <summary>Validates <c>PATCH /merchant/shipping-methods/{id}</c>.</summary>
+public sealed class UpdateShippingMethodRequestValidator : AbstractValidator<UpdateShippingMethodRequest>
+{
+    public UpdateShippingMethodRequestValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(120).When(x => x.Name is not null);
+        RuleFor(x => x.Description).MaximumLength(500);
+        RuleFor(x => x.Price).GreaterThanOrEqualTo(0m).When(x => x.Price.HasValue);
+        RuleFor(x => x.FreeAboveAmount).GreaterThanOrEqualTo(0m).When(x => x.FreeAboveAmount.HasValue);
+        RuleFor(x => x.EstimatedDaysText).MaximumLength(80);
+        RuleFor(x => x.SortOrder).GreaterThanOrEqualTo(0).When(x => x.SortOrder.HasValue);
     }
 }
 

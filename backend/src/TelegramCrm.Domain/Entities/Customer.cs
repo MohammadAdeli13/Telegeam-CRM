@@ -19,5 +19,7 @@ public class Customer : Entity, ITenantOwned
 
     public ICollection<CustomerTag> Tags { get; set; } = new List<CustomerTag>();
 
+    public ICollection<CustomerAddress> Addresses { get; set; } = new List<CustomerAddress>();
+
     public ICollection<Order> Orders { get; set; } = new List<Order>();
 }

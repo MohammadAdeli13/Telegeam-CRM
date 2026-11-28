@@ -187,7 +187,7 @@ public sealed class CustomerService : MerchantServiceBase
             .OrderByDescending(o => o.PlacedAt)
             .Skip((normalizedPage - 1) * normalizedSize)
             .Take(normalizedSize)
-            .Select(o => new CustomerOrderDto(o.Id, o.Status.ToString(), o.TotalAmount, o.Note, o.PlacedAt))
+            .Select(o => new CustomerOrderDto(o.Id, o.OrderNumber, o.Status.ToString(), o.TotalAmount, o.Note, o.PlacedAt))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -241,7 +241,6 @@ public sealed class CustomerService : MerchantServiceBase
             .ConfigureAwait(false)
             ?? throw new NotFoundException("tag_not_found", $"Tag '{tagId}' was not found.");
 
-        // CustomerTag rows cascade on delete, so the tag simply detaches from every customer.
         Db.Tags.Remove(tag);
         await Db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }

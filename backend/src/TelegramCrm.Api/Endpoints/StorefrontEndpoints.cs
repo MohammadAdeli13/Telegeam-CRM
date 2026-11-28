@@ -24,6 +24,13 @@ public static class StorefrontEndpoints
             .Produces<StorefrontShopDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        group.MapGet("/shipping-methods", ListShippingMethodsAsync)
+            .WithName("Storefront_ShippingMethods_List")
+            .WithSummary("List active delivery methods for a shop.")
+            .AllowAnonymous()
+            .Produces<IReadOnlyList<StorefrontShippingMethodDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapGet("/categories", ListCategoriesAsync)
             .WithName("Storefront_Categories_List")
             .WithSummary("List active categories for a shop.")
@@ -45,14 +52,53 @@ public static class StorefrontEndpoints
             .Produces<StorefrontProductDetailDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        // Authenticated customer addresses.
+        group.MapGet("/addresses", ListAddressesAsync)
+            .WithName("Storefront_Addresses_List")
+            .WithSummary("List the authenticated customer's saved delivery addresses.")
+            .RequireAuthorization()
+            .Produces<IReadOnlyList<CustomerAddressDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/addresses", CreateAddressAsync)
+            .WithName("Storefront_Addresses_Create")
+            .WithSummary("Add a saved delivery address for the authenticated customer.")
+            .RequireAuthorization()
+            .Produces<CustomerAddressDto>(StatusCodes.Status201Created)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPatch("/addresses/{id:guid}", UpdateAddressAsync)
+            .WithName("Storefront_Addresses_Update")
+            .WithSummary("Update one of the customer's saved addresses.")
+            .RequireAuthorization()
+            .Produces<CustomerAddressDto>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapDelete("/addresses/{id:guid}", DeleteAddressAsync)
+            .WithName("Storefront_Addresses_Delete")
+            .WithSummary("Delete one of the customer's saved addresses.")
+            .RequireAuthorization()
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/addresses/{id:guid}/default", SetDefaultAddressAsync)
+            .WithName("Storefront_Addresses_SetDefault")
+            .WithSummary("Mark a saved address as the customer's default.")
+            .RequireAuthorization()
+            .Produces<CustomerAddressDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         // Authenticated customer cart and order endpoints.
         group.MapPost("/cart/validate", ValidateCartAsync)
             .WithName("Storefront_Cart_Validate")
-            .WithSummary("Validate cart items against current stock and prices.")
+            .WithSummary("Validate cart items against current stock, prices, and optional shipping fee.")
             .RequireAuthorization()
             .Produces<CartValidationResponse>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         group.MapPost("/orders", PlaceOrderAsync)
             .WithName("Storefront_Orders_Place")
@@ -80,9 +126,21 @@ public static class StorefrontEndpoints
             .Produces<OrderDetailDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        group.MapPost("/orders/{id:guid}/receipt", UploadReceiptAsync)
+            .WithName("Storefront_Orders_UploadReceipt")
+            .WithSummary("Upload a card-to-card payment receipt image (multipart/form-data, field 'file').")
+            .RequireAuthorization()
+            .DisableAntiforgery()
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces<OrderDetailDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
         group.MapPost("/orders/{id:guid}/cancel", CancelMyOrderAsync)
             .WithName("Storefront_Orders_Cancel")
-            .WithSummary("Cancel the customer's own Pending order and restore stock.")
+            .WithSummary("Cancel the customer's own cancellable order and restore stock.")
             .RequireAuthorization()
             .Produces<OrderDetailDto>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
@@ -100,6 +158,16 @@ public static class StorefrontEndpoints
         _ = shopSlug;
         var shop = await service.GetShopAsync(cancellationToken).ConfigureAwait(false);
         return TypedResults.Ok(shop);
+    }
+
+    private static async Task<Ok<IReadOnlyList<StorefrontShippingMethodDto>>> ListShippingMethodsAsync(
+        string shopSlug,
+        StorefrontService service,
+        CancellationToken cancellationToken)
+    {
+        _ = shopSlug;
+        var methods = await service.ListShippingMethodsAsync(cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(methods);
     }
 
     private static async Task<Ok<IReadOnlyList<StorefrontCategoryDto>>> ListCategoriesAsync(
@@ -138,6 +206,74 @@ public static class StorefrontEndpoints
         _ = shopSlug;
         var product = await service.GetProductAsync(id, cancellationToken).ConfigureAwait(false);
         return TypedResults.Ok(product);
+    }
+
+    private static async Task<Ok<IReadOnlyList<CustomerAddressDto>>> ListAddressesAsync(
+        string shopSlug,
+        CustomerAddressService service,
+        CancellationToken cancellationToken)
+    {
+        _ = shopSlug;
+        var addresses = await service.ListAsync(cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(addresses);
+    }
+
+    private static async Task<Results<Created<CustomerAddressDto>, ValidationProblem>> CreateAddressAsync(
+        string shopSlug,
+        CreateCustomerAddressRequest request,
+        CreateCustomerAddressRequestValidator validator,
+        CustomerAddressService service,
+        CancellationToken cancellationToken)
+    {
+        var problem = await Validation.CheckAsync(validator, request, cancellationToken).ConfigureAwait(false);
+        if (problem is not null)
+        {
+            return problem;
+        }
+
+        var created = await service.CreateAsync(request, cancellationToken).ConfigureAwait(false);
+        return TypedResults.Created($"/api/v1/storefront/{shopSlug}/addresses/{created.Id}", created);
+    }
+
+    private static async Task<Results<Ok<CustomerAddressDto>, ValidationProblem>> UpdateAddressAsync(
+        string shopSlug,
+        Guid id,
+        UpdateCustomerAddressRequest request,
+        UpdateCustomerAddressRequestValidator validator,
+        CustomerAddressService service,
+        CancellationToken cancellationToken)
+    {
+        _ = shopSlug;
+        var problem = await Validation.CheckAsync(validator, request, cancellationToken).ConfigureAwait(false);
+        if (problem is not null)
+        {
+            return problem;
+        }
+
+        var updated = await service.UpdateAsync(id, request, cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(updated);
+    }
+
+    private static async Task<NoContent> DeleteAddressAsync(
+        string shopSlug,
+        Guid id,
+        CustomerAddressService service,
+        CancellationToken cancellationToken)
+    {
+        _ = shopSlug;
+        await service.DeleteAsync(id, cancellationToken).ConfigureAwait(false);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<Ok<CustomerAddressDto>> SetDefaultAddressAsync(
+        string shopSlug,
+        Guid id,
+        CustomerAddressService service,
+        CancellationToken cancellationToken)
+    {
+        _ = shopSlug;
+        var updated = await service.SetDefaultAsync(id, cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(updated);
     }
 
     private static async Task<Results<Ok<CartValidationResponse>, ValidationProblem>> ValidateCartAsync(
@@ -202,6 +338,22 @@ public static class StorefrontEndpoints
         _ = shopSlug;
         var order = await service.GetMyOrderAsync(id, cancellationToken).ConfigureAwait(false);
         return TypedResults.Ok(order);
+    }
+
+    private static async Task<Ok<OrderDetailDto>> UploadReceiptAsync(
+        string shopSlug,
+        Guid id,
+        IFormFile file,
+        OrderService orderService,
+        CancellationToken cancellationToken)
+    {
+        _ = shopSlug;
+        await using var stream = file.OpenReadStream();
+        var updated = await orderService
+            .SubmitCustomerReceiptAsync(id, file.ContentType, file.Length, stream, cancellationToken)
+            .ConfigureAwait(false);
+
+        return TypedResults.Ok(updated);
     }
 
     private static async Task<Results<Ok<OrderDetailDto>, ValidationProblem>> CancelMyOrderAsync(

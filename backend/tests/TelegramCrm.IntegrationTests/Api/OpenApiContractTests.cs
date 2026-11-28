@@ -7,9 +7,8 @@ using TelegramCrm.IntegrationTests.Support;
 namespace TelegramCrm.IntegrationTests.Api;
 
 /// <summary>
-/// Guards the P1 QA finding that the committed contract must be codegen-ready: a
-/// <c>Bearer</c> security scheme plus a per-operation <c>security</c> requirement on every
-/// operation that is not explicitly anonymous.
+/// Guards that the committed OpenAPI contract is codegen-ready with the <c>Bearer</c>
+/// security scheme applied to every protected operation.
 /// </summary>
 public sealed class OpenApiContractTests : IClassFixture<CrmApiFactory>
 {
@@ -54,6 +53,7 @@ public sealed class OpenApiContractTests : IClassFixture<CrmApiFactory>
             "POST /api/v1/auth/telegram",
             "GET /api/v1/health",
             "GET /api/v1/storefront/{shopSlug}",
+            "GET /api/v1/storefront/{shopSlug}/shipping-methods",
             "GET /api/v1/storefront/{shopSlug}/categories",
             "GET /api/v1/storefront/{shopSlug}/products",
             "GET /api/v1/storefront/{shopSlug}/products/{id}",
@@ -111,6 +111,8 @@ public sealed class OpenApiContractTests : IClassFixture<CrmApiFactory>
             "/api/v1/merchant/shop",
             "/api/v1/merchant/shop/logo",
             "/api/v1/merchant/shop/default-product-image",
+            "/api/v1/merchant/shipping-methods",
+            "/api/v1/merchant/shipping-methods/{id}",
             "/api/v1/merchant/categories",
             "/api/v1/merchant/categories/{id}",
             "/api/v1/merchant/products",
@@ -130,14 +132,20 @@ public sealed class OpenApiContractTests : IClassFixture<CrmApiFactory>
             "/api/v1/merchant/orders",
             "/api/v1/merchant/orders/{id}",
             "/api/v1/merchant/orders/{id}/status",
+            "/api/v1/merchant/orders/{id}/payment-decision",
             "/api/v1/merchant/orders/{id}/history",
             "/api/v1/storefront/{shopSlug}",
+            "/api/v1/storefront/{shopSlug}/shipping-methods",
             "/api/v1/storefront/{shopSlug}/categories",
             "/api/v1/storefront/{shopSlug}/products",
             "/api/v1/storefront/{shopSlug}/products/{id}",
+            "/api/v1/storefront/{shopSlug}/addresses",
+            "/api/v1/storefront/{shopSlug}/addresses/{id}",
+            "/api/v1/storefront/{shopSlug}/addresses/{id}/default",
             "/api/v1/storefront/{shopSlug}/cart/validate",
             "/api/v1/storefront/{shopSlug}/orders",
             "/api/v1/storefront/{shopSlug}/orders/{id}",
+            "/api/v1/storefront/{shopSlug}/orders/{id}/receipt",
             "/api/v1/storefront/{shopSlug}/orders/{id}/cancel",
             "/api/v1/telegram/webhook",
         ];

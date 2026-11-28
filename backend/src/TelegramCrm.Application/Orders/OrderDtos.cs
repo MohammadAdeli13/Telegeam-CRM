@@ -3,10 +3,18 @@ namespace TelegramCrm.Application.Orders;
 /// <summary>Compact order row used by list endpoints.</summary>
 public sealed record OrderSummaryDto(
     Guid Id,
+    int OrderNumber,
     Guid CustomerId,
     string? CustomerDisplayName,
     string Status,
+    decimal SubtotalAmount,
+    decimal ShippingAmount,
     decimal TotalAmount,
+    string PaymentMethod,
+    string PaymentStatus,
+    string? ShippingCity,
+    string? CarrierName,
+    string? TrackingCode,
     string? Note,
     DateTimeOffset PlacedAt,
     uint RowVersion);
@@ -30,13 +38,34 @@ public sealed record OrderStatusHistoryDto(
     string? Reason,
     DateTimeOffset OccurredAt);
 
-/// <summary>Full order detail including snapshotted items and status timeline.</summary>
+/// <summary>Full order detail including snapshotted items, shipping, payment, and timeline.</summary>
 public sealed record OrderDetailDto(
     Guid Id,
+    int OrderNumber,
     Guid CustomerId,
     string? CustomerDisplayName,
     string Status,
+    decimal SubtotalAmount,
+    decimal ShippingAmount,
     decimal TotalAmount,
+    string? ShippingMethodNameSnapshot,
+    bool IsShippingPayAtDestination,
+    string? RecipientName,
+    string? RecipientPhone,
+    string? ShippingProvince,
+    string? ShippingCity,
+    string? ShippingAddressSnapshot,
+    string? ShippingPostalCode,
+    string PaymentMethod,
+    string PaymentStatus,
+    string? ReceiptUrl,
+    DateTimeOffset? ReceiptSubmittedAt,
+    DateTimeOffset? PaymentVerifiedAt,
+    string? PaymentRejectionReason,
+    DateTimeOffset? PaymentExpiresAt,
+    string? CarrierName,
+    string? TrackingCode,
+    DateTimeOffset? ShippedAt,
     string? Note,
     DateTimeOffset PlacedAt,
     uint RowVersion,
@@ -46,8 +75,15 @@ public sealed record OrderDetailDto(
 /// <summary>Request body of <c>PATCH /merchant/orders/{id}/status</c>.</summary>
 public sealed record UpdateOrderStatusRequest(
     string Status,
-    string? Reason,
-    uint? RowVersion);
+    string? Reason = null,
+    uint? RowVersion = null,
+    string? CarrierName = null,
+    string? TrackingCode = null);
+
+/// <summary>Request body of <c>POST /merchant/orders/{id}/payment-decision</c>.</summary>
+public sealed record PaymentDecisionRequest(
+    bool Approve,
+    string? Reason = null);
 
 /// <summary>Optional request body of <c>POST /storefront/{shopSlug}/orders/{id}/cancel</c>.</summary>
 public sealed record CancelOrderRequest(string? Reason);

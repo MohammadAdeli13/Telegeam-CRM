@@ -35,7 +35,7 @@ if (app.Environment.IsDevelopment() || openApiOutputPath is not null)
     app.MapOpenApi();
 }
 
-// Serve uploaded product images from the configured tenant-namespaced storage directory.
+// Serve uploaded product, branding, and receipt images from the configured tenant-namespaced storage directory.
 if (openApiOutputPath is null)
 {
     var storageOptions = app.Services.GetRequiredService<IOptions<FileStorageOptions>>().Value;
@@ -66,6 +66,7 @@ app.MapMerchantEndpoints();
 
 // Merchant back-office — every group requires the `Merchant` policy.
 app.MapMerchantShopEndpoints();
+app.MapShippingMethodEndpoints();
 app.MapCategoryEndpoints();
 app.MapProductEndpoints();
 app.MapProductImageEndpoints();

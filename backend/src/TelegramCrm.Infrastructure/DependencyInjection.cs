@@ -10,6 +10,7 @@ using TelegramCrm.Application.Orders;
 using TelegramCrm.Application.Storefront;
 using TelegramCrm.Application.Telegram;
 using TelegramCrm.Infrastructure.Auth;
+using TelegramCrm.Infrastructure.Orders;
 using TelegramCrm.Infrastructure.Persistence;
 using TelegramCrm.Infrastructure.Storage;
 using TelegramCrm.Infrastructure.Telegram;
@@ -27,6 +28,7 @@ public static class DependencyInjection
         services.Configure<TelegramAuthOptions>(configuration.GetSection(TelegramAuthOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
         services.Configure<TelegramBotOptions>(configuration.GetSection(TelegramBotOptions.SectionName));
+        services.Configure<OrderLifecycleOptions>(configuration.GetSection(OrderLifecycleOptions.SectionName));
 
         services.AddHttpContextAccessor();
         services.AddSingleton<IClock, SystemClock>();
@@ -34,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<HttpTenantContext>();
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<HttpTenantContext>());
         services.AddScoped<IStorefrontTenantSetter>(sp => sp.GetRequiredService<HttpTenantContext>());
+        services.AddScoped<ISystemTenantSetter>(sp => sp.GetRequiredService<HttpTenantContext>());
 
         services.AddScoped<ICurrentUser, HttpCurrentUser>();
         services.AddScoped<TenantGuardInterceptor>();
@@ -58,6 +61,7 @@ public static class DependencyInjection
 
         // Merchant back-office.
         services.AddScoped<MerchantShopService>();
+        services.AddScoped<ShippingMethodService>();
         services.AddScoped<CategoryService>();
         services.AddScoped<ProductService>();
         services.AddScoped<ProductImageService>();
@@ -65,6 +69,8 @@ public static class DependencyInjection
         services.AddScoped<ShopSettingService>();
 
         services.AddScoped<UpdateMerchantShopRequestValidator>();
+        services.AddScoped<CreateShippingMethodRequestValidator>();
+        services.AddScoped<UpdateShippingMethodRequestValidator>();
         services.AddScoped<CreateCategoryRequestValidator>();
         services.AddScoped<UpdateCategoryRequestValidator>();
         services.AddScoped<CreateProductRequestValidator>();
@@ -79,17 +85,24 @@ public static class DependencyInjection
 
         // Orders, Storefront & Telegram Bot.
         services.AddScoped<OrderService>();
+        services.AddScoped<CustomerAddressService>();
         services.AddScoped<StorefrontService>();
         services.AddScoped<TelegramWebhookService>();
 
         services.AddScoped<UpdateOrderStatusRequestValidator>();
+        services.AddScoped<PaymentDecisionRequestValidator>();
         services.AddScoped<CancelOrderRequestValidator>();
         services.AddScoped<ValidateCartRequestValidator>();
         services.AddScoped<PlaceOrderRequestValidator>();
+        services.AddScoped<CreateCustomerAddressRequestValidator>();
+        services.AddScoped<UpdateCustomerAddressRequestValidator>();
 
         services.AddSingleton<ITelegramBotSender, TelegramBotSender>();
         services.AddSingleton<OutboxProcessor>();
         services.AddHostedService<OutboxWorker>();
+
+        services.AddSingleton<OrderExpiryProcessor>();
+        services.AddHostedService<OrderExpiryWorker>();
 
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
 

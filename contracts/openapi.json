@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:11667"
+      "url": "http://127.0.0.1:11494"
     }
   ],
   "paths": {
@@ -510,6 +510,238 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantShopDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/merchant/shipping-methods": {
+      "get": {
+        "tags": [
+          "Merchant.ShippingMethods"
+        ],
+        "summary": "List the shop's delivery methods.",
+        "operationId": "Merchant_ShippingMethods_List",
+        "parameters": [
+          {
+            "name": "isActive",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ShippingMethodDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Merchant.ShippingMethods"
+        ],
+        "summary": "Create a delivery method.",
+        "operationId": "Merchant_ShippingMethods_Create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateShippingMethodRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShippingMethodDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/merchant/shipping-methods/{id}": {
+      "get": {
+        "tags": [
+          "Merchant.ShippingMethods"
+        ],
+        "summary": "Get one delivery method.",
+        "operationId": "Merchant_ShippingMethods_Get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShippingMethodDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Merchant.ShippingMethods"
+        ],
+        "summary": "Partially update a delivery method.",
+        "operationId": "Merchant_ShippingMethods_Update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateShippingMethodRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShippingMethodDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Merchant.ShippingMethods"
+        ],
+        "summary": "Delete a delivery method (existing order snapshots remain intact).",
+        "operationId": "Merchant_ShippingMethods_Delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -2193,7 +2425,7 @@
         "tags": [
           "Merchant.Orders"
         ],
-        "summary": "Get full order detail including items and status history.",
+        "summary": "Get full order detail including items, shipping, payment, and timeline.",
         "operationId": "Merchant_Orders_Get",
         "parameters": [
           {
@@ -2240,7 +2472,7 @@
         "tags": [
           "Merchant.Orders"
         ],
-        "summary": "Transition an order status using the state machine.",
+        "summary": "Transition an order status using the state machine (supports carrier & tracking on Shipped).",
         "operationId": "Merchant_Orders_UpdateStatus",
         "parameters": [
           {
@@ -2258,6 +2490,83 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateOrderStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/merchant/orders/{id}/payment-decision": {
+      "post": {
+        "tags": [
+          "Merchant.Orders"
+        ],
+        "summary": "Approve or reject a submitted card-to-card payment receipt.",
+        "operationId": "Merchant_Orders_ReviewPayment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentDecisionRequest"
               }
             }
           },
@@ -2386,6 +2695,50 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StorefrontShopDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/storefront/{shopSlug}/shipping-methods": {
+      "get": {
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "List active delivery methods for a shop.",
+        "operationId": "Storefront_ShippingMethods_List",
+        "parameters": [
+          {
+            "name": "shopSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StorefrontShippingMethodDto"
+                  }
                 }
               }
             }
@@ -2577,12 +2930,301 @@
         }
       }
     },
+    "/api/v1/storefront/{shopSlug}/addresses": {
+      "get": {
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "List the authenticated customer's saved delivery addresses.",
+        "operationId": "Storefront_Addresses_List",
+        "parameters": [
+          {
+            "name": "shopSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerAddressDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Add a saved delivery address for the authenticated customer.",
+        "operationId": "Storefront_Addresses_Create",
+        "parameters": [
+          {
+            "name": "shopSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomerAddressRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerAddressDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/storefront/{shopSlug}/addresses/{id}": {
+      "patch": {
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Update one of the customer's saved addresses.",
+        "operationId": "Storefront_Addresses_Update",
+        "parameters": [
+          {
+            "name": "shopSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCustomerAddressRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerAddressDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Delete one of the customer's saved addresses.",
+        "operationId": "Storefront_Addresses_Delete",
+        "parameters": [
+          {
+            "name": "shopSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/storefront/{shopSlug}/addresses/{id}/default": {
+      "post": {
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Mark a saved address as the customer's default.",
+        "operationId": "Storefront_Addresses_SetDefault",
+        "parameters": [
+          {
+            "name": "shopSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerAddressDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/v1/storefront/{shopSlug}/cart/validate": {
       "post": {
         "tags": [
           "Storefront"
         ],
-        "summary": "Validate cart items against current stock and prices.",
+        "summary": "Validate cart items against current stock, prices, and optional shipping fee.",
         "operationId": "Storefront_Cart_Validate",
         "parameters": [
           {
@@ -2627,6 +3269,16 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2869,12 +3521,115 @@
         ]
       }
     },
+    "/api/v1/storefront/{shopSlug}/orders/{id}/receipt": {
+      "post": {
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Upload a card-to-card payment receipt image (multipart/form-data, field 'file').",
+        "operationId": "Storefront_Orders_UploadReceipt",
+        "parameters": [
+          {
+            "name": "shopSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "file"
+                ],
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/v1/storefront/{shopSlug}/orders/{id}/cancel": {
       "post": {
         "tags": [
           "Storefront"
         ],
-        "summary": "Cancel the customer's own Pending order and restore stock.",
+        "summary": "Cancel the customer's own cancellable order and restore stock.",
         "operationId": "Storefront_Orders_Cancel",
         "parameters": [
           {
@@ -3105,6 +3860,9 @@
       "CartValidationResponse": {
         "required": [
           "isValid",
+          "subtotalAmount",
+          "shippingAmount",
+          "isShippingPayAtDestination",
           "totalAmount",
           "currency",
           "items"
@@ -3112,6 +3870,25 @@
         "type": "object",
         "properties": {
           "isValid": {
+            "type": "boolean"
+          },
+          "subtotalAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "shippingAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "isShippingPayAtDestination": {
             "type": "boolean"
           },
           "totalAmount": {
@@ -3224,6 +4001,62 @@
           }
         },
         "description": "Request body of `POST /merchant/categories`."
+      },
+      "CreateCustomerAddressRequest": {
+        "required": [
+          "title",
+          "recipientName",
+          "phone",
+          "province",
+          "city",
+          "addressLine"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "recipientName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "province": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "addressLine": {
+            "type": "string"
+          },
+          "plaque": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postalCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isDefault": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        },
+        "description": "Request body of `POST /storefront/{shopSlug}/addresses`."
       },
       "CreateCustomerRequest": {
         "required": [
@@ -3355,6 +4188,75 @@
         },
         "description": "Request body of `POST /merchant/products`."
       },
+      "CreateShippingMethodRequest": {
+        "required": [
+          "name",
+          "description",
+          "price",
+          "freeAboveAmount",
+          "isPayAtDestination",
+          "estimatedDaysText",
+          "sortOrder",
+          "isActive"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "price": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "freeAboveAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "isPayAtDestination": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "estimatedDaysText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isActive": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        },
+        "description": "Request body of `POST /merchant/shipping-methods`."
+      },
       "CreateTagRequest": {
         "required": [
           "name"
@@ -3366,6 +4268,78 @@
           }
         },
         "description": "Request body of `POST /merchant/tags`."
+      },
+      "CustomerAddressDto": {
+        "required": [
+          "id",
+          "title",
+          "recipientName",
+          "phone",
+          "province",
+          "city",
+          "addressLine",
+          "plaque",
+          "unit",
+          "postalCode",
+          "isDefault",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "recipientName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "province": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "addressLine": {
+            "type": "string"
+          },
+          "plaque": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postalCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "A saved delivery address of the authenticated customer."
       },
       "CustomerDto": {
         "required": [
@@ -3437,6 +4411,7 @@
       "CustomerOrderDto": {
         "required": [
           "id",
+          "orderNumber",
           "status",
           "totalAmount",
           "note",
@@ -3447,6 +4422,14 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "orderNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "status": {
             "type": "string"
@@ -3605,6 +4588,13 @@
           "isActive",
           "logoUrl",
           "defaultProductImageUrl",
+          "requireOrderApproval",
+          "paymentExpiryMinutes",
+          "enableCardToCard",
+          "enablePayOnDelivery",
+          "cardNumber",
+          "cardHolderName",
+          "bankName",
           "createdAt",
           "updatedAt"
         ],
@@ -3641,6 +4631,41 @@
               "string"
             ]
           },
+          "requireOrderApproval": {
+            "type": "boolean"
+          },
+          "paymentExpiryMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "enableCardToCard": {
+            "type": "boolean"
+          },
+          "enablePayOnDelivery": {
+            "type": "boolean"
+          },
+          "cardNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cardHolderName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bankName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -3650,15 +4675,36 @@
             "format": "date-time"
           }
         },
-        "description": "Active shop profile and branding as returned by `/merchant/shop`."
+        "description": "Active shop profile, branding, and checkout settings returned by `/merchant/shop`."
       },
       "OrderDetailDto": {
         "required": [
           "id",
+          "orderNumber",
           "customerId",
           "customerDisplayName",
           "status",
+          "subtotalAmount",
+          "shippingAmount",
           "totalAmount",
+          "shippingMethodNameSnapshot",
+          "isShippingPayAtDestination",
+          "recipientName",
+          "recipientPhone",
+          "shippingProvince",
+          "shippingCity",
+          "shippingAddressSnapshot",
+          "shippingPostalCode",
+          "paymentMethod",
+          "paymentStatus",
+          "receiptUrl",
+          "receiptSubmittedAt",
+          "paymentVerifiedAt",
+          "paymentRejectionReason",
+          "paymentExpiresAt",
+          "carrierName",
+          "trackingCode",
+          "shippedAt",
           "note",
           "placedAt",
           "rowVersion",
@@ -3670,6 +4716,14 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "orderNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "customerId": {
             "type": "string",
@@ -3684,6 +4738,22 @@
           "status": {
             "type": "string"
           },
+          "subtotalAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "shippingAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
           "totalAmount": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
             "type": [
@@ -3691,6 +4761,109 @@
               "string"
             ],
             "format": "double"
+          },
+          "shippingMethodNameSnapshot": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isShippingPayAtDestination": {
+            "type": "boolean"
+          },
+          "recipientName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recipientPhone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shippingProvince": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shippingCity": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shippingAddressSnapshot": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shippingPostalCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paymentMethod": {
+            "type": "string"
+          },
+          "paymentStatus": {
+            "type": "string"
+          },
+          "receiptUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "receiptSubmittedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "paymentVerifiedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "paymentRejectionReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paymentExpiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "carrierName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "trackingCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shippedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           },
           "note": {
             "type": [
@@ -3723,7 +4896,7 @@
             }
           }
         },
-        "description": "Full order detail including snapshotted items and status timeline."
+        "description": "Full order detail including snapshotted items, shipping, payment, and timeline."
       },
       "OrderItemDto": {
         "required": [
@@ -3828,10 +5001,18 @@
       "OrderSummaryDto": {
         "required": [
           "id",
+          "orderNumber",
           "customerId",
           "customerDisplayName",
           "status",
+          "subtotalAmount",
+          "shippingAmount",
           "totalAmount",
+          "paymentMethod",
+          "paymentStatus",
+          "shippingCity",
+          "carrierName",
+          "trackingCode",
           "note",
           "placedAt",
           "rowVersion"
@@ -3841,6 +5022,14 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "orderNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "customerId": {
             "type": "string",
@@ -3855,6 +5044,22 @@
           "status": {
             "type": "string"
           },
+          "subtotalAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "shippingAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
           "totalAmount": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
             "type": [
@@ -3862,6 +5067,30 @@
               "string"
             ],
             "format": "double"
+          },
+          "paymentMethod": {
+            "type": "string"
+          },
+          "paymentStatus": {
+            "type": "string"
+          },
+          "shippingCity": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "carrierName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "trackingCode": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "note": {
             "type": [
@@ -4136,11 +5365,27 @@
         },
         "description": "One page of a collection, as returned by every list endpoint\r\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
       },
+      "PaymentDecisionRequest": {
+        "required": [
+          "approve"
+        ],
+        "type": "object",
+        "properties": {
+          "approve": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Request body of `POST /merchant/orders/{id}/payment-decision`."
+      },
       "PlaceOrderRequest": {
         "required": [
-          "items",
-          "note",
-          "phone"
+          "items"
         ],
         "type": "object",
         "properties": {
@@ -4157,6 +5402,26 @@
             ]
           },
           "phone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "addressId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "shippingMethodId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "paymentMethod": {
             "type": [
               "null",
               "string"
@@ -4323,6 +5588,83 @@
           }
         },
         "description": "A product image as returned by the merchant back-office."
+      },
+      "ShippingMethodDto": {
+        "required": [
+          "id",
+          "name",
+          "description",
+          "price",
+          "freeAboveAmount",
+          "isPayAtDestination",
+          "estimatedDaysText",
+          "sortOrder",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "price": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "freeAboveAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "isPayAtDestination": {
+            "type": "boolean"
+          },
+          "estimatedDaysText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "A delivery method configured by the merchant."
       },
       "ShopSettingDto": {
         "required": [
@@ -4584,6 +5926,69 @@
         },
         "description": "Compact product card returned by `GET /storefront/{shopSlug}/products`."
       },
+      "StorefrontShippingMethodDto": {
+        "required": [
+          "id",
+          "name",
+          "description",
+          "price",
+          "freeAboveAmount",
+          "isPayAtDestination",
+          "estimatedDaysText",
+          "sortOrder"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "price": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "freeAboveAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "isPayAtDestination": {
+            "type": "boolean"
+          },
+          "estimatedDaysText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "Active delivery method shown at storefront checkout."
+      },
       "StorefrontShopDto": {
         "required": [
           "id",
@@ -4592,7 +5997,14 @@
           "defaultLanguage",
           "currency",
           "logoUrl",
-          "defaultProductImageUrl"
+          "defaultProductImageUrl",
+          "requireOrderApproval",
+          "enableCardToCard",
+          "enablePayOnDelivery",
+          "cardNumber",
+          "cardHolderName",
+          "bankName",
+          "paymentExpiryMinutes"
         ],
         "type": "object",
         "properties": {
@@ -4623,6 +6035,41 @@
               "null",
               "string"
             ]
+          },
+          "requireOrderApproval": {
+            "type": "boolean"
+          },
+          "enableCardToCard": {
+            "type": "boolean"
+          },
+          "enablePayOnDelivery": {
+            "type": "boolean"
+          },
+          "cardNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cardHolderName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bankName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paymentExpiryMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
         "description": "Public shop metadata returned by `GET /storefront/{shopSlug}`."
@@ -4896,6 +6343,72 @@
         },
         "description": "Request body of `PATCH /merchant/categories/{id}` — every field optional."
       },
+      "UpdateCustomerAddressRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recipientName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "province": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "city": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "addressLine": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "plaque": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postalCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isDefault": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        },
+        "description": "Request body of `PATCH /storefront/{shopSlug}/addresses/{id}`."
+      },
       "UpdateCustomerRequest": {
         "required": [
           "displayName",
@@ -4932,11 +6445,6 @@
         "description": "Request body of `PATCH /merchant/customers/{id}` — every field optional."
       },
       "UpdateMerchantShopRequest": {
-        "required": [
-          "name",
-          "defaultLanguage",
-          "currency"
-        ],
         "type": "object",
         "properties": {
           "name": {
@@ -4956,15 +6464,58 @@
               "null",
               "string"
             ]
+          },
+          "requireOrderApproval": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "paymentExpiryMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "enableCardToCard": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "enablePayOnDelivery": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "cardNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cardHolderName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bankName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "Request body of `PATCH /merchant/shop` — every field optional."
       },
       "UpdateOrderStatusRequest": {
         "required": [
-          "status",
-          "reason",
-          "rowVersion"
+          "status"
         ],
         "type": "object",
         "properties": {
@@ -4985,6 +6536,18 @@
               "string"
             ],
             "format": "uint32"
+          },
+          "carrierName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "trackingCode": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "Request body of `PATCH /merchant/orders/{id}/status`."
@@ -5083,6 +6646,75 @@
         },
         "description": "Request body of `PUT /merchant/settings` — replaces the whole set."
       },
+      "UpdateShippingMethodRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "price": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "freeAboveAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "clearFreeAboveAmount": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "isPayAtDestination": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "estimatedDaysText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isActive": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        },
+        "description": "Request body of `PATCH /merchant/shipping-methods/{id}` — every field optional."
+      },
       "ValidateCartRequest": {
         "required": [
           "items"
@@ -5094,6 +6726,13 @@
             "items": {
               "$ref": "#/components/schemas/CartLineRequest"
             }
+          },
+          "shippingMethodId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         },
         "description": "Request body of `POST /storefront/{shopSlug}/cart/validate`."
@@ -5190,6 +6829,9 @@
     },
     {
       "name": "Merchant.Shop"
+    },
+    {
+      "name": "Merchant.ShippingMethods"
     },
     {
       "name": "Merchant.Categories"

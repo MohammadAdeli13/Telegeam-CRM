@@ -92,6 +92,8 @@ public sealed partial class OutboxProcessor
         {
             OutboxEventTypes.OrderPlaced => DispatchOrderPlacedAsync(message.Payload, cancellationToken),
             OutboxEventTypes.OrderStatusChanged => DispatchOrderStatusChangedAsync(message.Payload, cancellationToken),
+            OutboxEventTypes.OrderReceiptSubmitted => DispatchReceiptSubmittedAsync(message.Payload, cancellationToken),
+            OutboxEventTypes.OrderPaymentReviewed => DispatchPaymentReviewedAsync(message.Payload, cancellationToken),
             OutboxEventTypes.BotReply => DispatchBotReplyAsync(message.Payload, cancellationToken),
             _ => HandleUnknownType(message),
         };
@@ -102,16 +104,24 @@ public sealed partial class OutboxProcessor
             ?? throw new InvalidOperationException("Invalid OrderPlacedOutboxPayload.");
 
         var isPersian = string.Equals(payload.ShopLanguage, "fa", StringComparison.OrdinalIgnoreCase);
+        var orderLabel = FormatOrderLabel(payload.OrderId, payload.OrderNumber);
         var formattedAmount = FormatAmount(payload.TotalAmount, payload.Currency, isPersian);
         var customerLabel = string.IsNullOrWhiteSpace(payload.CustomerDisplayName)
             ? payload.CustomerTelegramUserId.ToString(CultureInfo.InvariantCulture)
             : payload.CustomerDisplayName;
 
         var text = isPersian
-            ? $"سفارش جدید در {payload.ShopName}\nمشتری: {customerLabel}\n" +
+            ? $"سفارش جدید #{orderLabel} در {payload.ShopName}\nمشتری: {customerLabel}\n" +
               $"تعداد اقلام: {payload.ItemCount}\nمبلغ کل: {formattedAmount}"
-            : $"New order in {payload.ShopName}\nCustomer: {customerLabel}\n" +
+            : $"New order #{orderLabel} in {payload.ShopName}\nCustomer: {customerLabel}\n" +
               $"Items: {payload.ItemCount}\nTotal: {formattedAmount}";
+
+        if (!string.IsNullOrWhiteSpace(payload.ShippingMethodName))
+        {
+            text += isPersian
+                ? $"\nروش ارسال: {payload.ShippingMethodName}"
+                : $"\nShipping: {payload.ShippingMethodName}";
+        }
 
         foreach (var merchantChatId in payload.MerchantTelegramUserIds.Where(id => id > 0))
         {
@@ -130,15 +140,97 @@ public sealed partial class OutboxProcessor
         }
 
         var isPersian = string.Equals(payload.ShopLanguage, "fa", StringComparison.OrdinalIgnoreCase);
-        var shortId = payload.OrderId.ToString("N")[..8];
+        var orderLabel = FormatOrderLabel(payload.OrderId, payload.OrderNumber);
         var statusLabel = FormatOrderStatus(payload.ToStatus, isPersian);
         var text = isPersian
-            ? $"وضعیت سفارش #{shortId} در فروشگاه {payload.ShopName} به «{statusLabel}» تغییر یافت."
-            : $"Your order #{shortId} in {payload.ShopName} is now '{statusLabel}'.";
+            ? $"وضعیت سفارش #{orderLabel} در فروشگاه {payload.ShopName} به «{statusLabel}» تغییر یافت."
+            : $"Your order #{orderLabel} in {payload.ShopName} is now '{statusLabel}'.";
 
-        if (!string.IsNullOrWhiteSpace(payload.Reason))
+        if (!string.IsNullOrWhiteSpace(payload.CarrierName))
         {
-            text += isPersian ? $"\nتوضیح: {payload.Reason}" : $"\nNote: {payload.Reason}";
+            text += isPersian
+                ? $"\nشرکت حمل‌ونقل: {payload.CarrierName}"
+                : $"\nCarrier: {payload.CarrierName}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(payload.TrackingCode))
+        {
+            text += isPersian
+                ? $"\nکد رهگیری: {payload.TrackingCode}"
+                : $"\nTracking code: {payload.TrackingCode}";
+        }
+
+        var localizedReason = FormatTransitionReason(payload.Reason, isPersian);
+        if (!string.IsNullOrWhiteSpace(localizedReason))
+        {
+            text += isPersian ? $"\nتوضیح: {localizedReason}" : $"\nNote: {localizedReason}";
+        }
+
+        await _sender
+            .SendMessageAsync(payload.CustomerTelegramUserId, text, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task DispatchReceiptSubmittedAsync(string rawPayload, CancellationToken cancellationToken)
+    {
+        var payload = JsonSerializer.Deserialize<OrderReceiptSubmittedOutboxPayload>(rawPayload, _json)
+            ?? throw new InvalidOperationException("Invalid OrderReceiptSubmittedOutboxPayload.");
+
+        var isPersian = string.Equals(payload.ShopLanguage, "fa", StringComparison.OrdinalIgnoreCase);
+        var orderLabel = FormatOrderLabel(payload.OrderId, payload.OrderNumber);
+        var formattedAmount = FormatAmount(payload.TotalAmount, payload.Currency, isPersian);
+        var customerLabel = string.IsNullOrWhiteSpace(payload.CustomerDisplayName)
+            ? "-"
+            : payload.CustomerDisplayName;
+
+        var text = isPersian
+            ? $"فیش واریزی جدید برای سفارش #{orderLabel} در {payload.ShopName} ارسال شد.\n" +
+              $"مشتری: {customerLabel}\nمبلغ: {formattedAmount}\n" +
+              "لطفاً پس از بررسی واریز در همراه بانک، فیش را در پنل تأیید یا رد کنید."
+            : $"New payment receipt submitted for order #{orderLabel} in {payload.ShopName}.\n" +
+              $"Customer: {customerLabel}\nAmount: {formattedAmount}\n" +
+              "Please verify the transfer in your bank app before approving.";
+
+        foreach (var merchantChatId in payload.MerchantTelegramUserIds.Where(id => id > 0))
+        {
+            await _sender.SendMessageAsync(merchantChatId, text, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task DispatchPaymentReviewedAsync(string rawPayload, CancellationToken cancellationToken)
+    {
+        var payload = JsonSerializer.Deserialize<OrderPaymentReviewedOutboxPayload>(rawPayload, _json)
+            ?? throw new InvalidOperationException("Invalid OrderPaymentReviewedOutboxPayload.");
+
+        if (payload.CustomerTelegramUserId <= 0)
+        {
+            return;
+        }
+
+        var isPersian = string.Equals(payload.ShopLanguage, "fa", StringComparison.OrdinalIgnoreCase);
+        var orderLabel = FormatOrderLabel(payload.OrderId, payload.OrderNumber);
+
+        string text;
+        if (payload.Approved)
+        {
+            text = isPersian
+                ? payload.AutoConfirmed
+                    ? $"پرداخت سفارش #{orderLabel} در {payload.ShopName} تأیید شد و سفارش شما وارد مرحله تأیید شده گردید."
+                    : $"پرداخت سفارش #{orderLabel} در {payload.ShopName} تأیید شد."
+                : payload.AutoConfirmed
+                    ? $"Payment for order #{orderLabel} in {payload.ShopName} was verified and your order is now Confirmed."
+                    : $"Payment for order #{orderLabel} in {payload.ShopName} was verified.";
+        }
+        else
+        {
+            text = isPersian
+                ? $"فیش واریزی سفارش #{orderLabel} در {payload.ShopName} تأیید نشد. لطفاً فیش صحیح را مجدداً ارسال کنید."
+                : $"The payment receipt for order #{orderLabel} in {payload.ShopName} was rejected. Please upload a valid receipt.";
+
+            if (!string.IsNullOrWhiteSpace(payload.Reason))
+            {
+                text += isPersian ? $"\nدلیل: {payload.Reason}" : $"\nReason: {payload.Reason}";
+            }
         }
 
         await _sender
@@ -176,6 +268,11 @@ public sealed partial class OutboxProcessor
         return Task.CompletedTask;
     }
 
+    public static string FormatOrderLabel(Guid orderId, int orderNumber) =>
+        orderNumber > 0
+            ? orderNumber.ToString(CultureInfo.InvariantCulture)
+            : orderId.ToString("N")[..8].ToUpperInvariant();
+
     public static string FormatOrderStatus(string status, bool isPersian)
     {
         if (!isPersian)
@@ -192,6 +289,23 @@ public sealed partial class OutboxProcessor
             "Delivered" => "تحویل شده",
             "Cancelled" => "لغو شده",
             _ => status,
+        };
+    }
+
+    public static string? FormatTransitionReason(string? reason, bool isPersian)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return null;
+        }
+
+        return reason switch
+        {
+            "payment_expired" => isPersian
+                ? "مهلت ارسال فیش واریزی به پایان رسید."
+                : "The payment window expired.",
+            "auto_confirmed" or "payment_verified" => null,
+            _ => reason,
         };
     }
 

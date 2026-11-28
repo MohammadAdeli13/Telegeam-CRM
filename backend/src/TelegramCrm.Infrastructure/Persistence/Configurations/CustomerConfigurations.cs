@@ -21,6 +21,39 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
     }
 }
 
+public sealed class CustomerAddressConfiguration : IEntityTypeConfiguration<CustomerAddress>
+{
+    public void Configure(EntityTypeBuilder<CustomerAddress> builder)
+    {
+        EntityMapping.MapBase(builder, "CustomerAddresses");
+        EntityMapping.MapTenant(builder);
+
+        builder.Property(e => e.Title).IsRequired().HasMaxLength(60);
+        builder.Property(e => e.RecipientName).IsRequired().HasMaxLength(150);
+        builder.Property(e => e.Phone).IsRequired().HasMaxLength(20);
+        builder.Property(e => e.Province).IsRequired().HasMaxLength(80);
+        builder.Property(e => e.City).IsRequired().HasMaxLength(80);
+        builder.Property(e => e.AddressLine).IsRequired().HasMaxLength(500);
+        builder.Property(e => e.Plaque).HasMaxLength(20);
+        builder.Property(e => e.Unit).HasMaxLength(20);
+        builder.Property(e => e.PostalCode).HasMaxLength(20);
+        builder.Property(e => e.IsDefault).IsRequired().HasDefaultValue(false);
+
+        builder.HasIndex(e => new { e.TenantId, e.CustomerId });
+
+        // At most one default address per customer.
+        builder.HasIndex(e => e.CustomerId)
+            .IsUnique()
+            .HasFilter("\"IsDefault\"")
+            .HasDatabaseName("UX_CustomerAddresses_Default");
+
+        builder.HasOne(e => e.Customer)
+            .WithMany(c => c.Addresses)
+            .HasForeignKey(e => e.CustomerId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 public sealed class TagConfiguration : IEntityTypeConfiguration<Tag>
 {
     public void Configure(EntityTypeBuilder<Tag> builder)

@@ -160,6 +160,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/merchant/shipping-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the shop's delivery methods. */
+        get: operations["Merchant_ShippingMethods_List"];
+        put?: never;
+        /** Create a delivery method. */
+        post: operations["Merchant_ShippingMethods_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/shipping-methods/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one delivery method. */
+        get: operations["Merchant_ShippingMethods_Get"];
+        put?: never;
+        post?: never;
+        /** Delete a delivery method (existing order snapshots remain intact). */
+        delete: operations["Merchant_ShippingMethods_Delete"];
+        options?: never;
+        head?: never;
+        /** Partially update a delivery method. */
+        patch: operations["Merchant_ShippingMethods_Update"];
+        trace?: never;
+    };
     "/api/v1/merchant/categories": {
         parameters: {
             query?: never;
@@ -468,7 +505,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get full order detail including items and status history. */
+        /** Get full order detail including items, shipping, payment, and timeline. */
         get: operations["Merchant_Orders_Get"];
         put?: never;
         post?: never;
@@ -491,8 +528,25 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Transition an order status using the state machine. */
+        /** Transition an order status using the state machine (supports carrier & tracking on Shipped). */
         patch: operations["Merchant_Orders_UpdateStatus"];
+        trace?: never;
+    };
+    "/api/v1/merchant/orders/{id}/payment-decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve or reject a submitted card-to-card payment receipt. */
+        post: operations["Merchant_Orders_ReviewPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/merchant/orders/{id}/history": {
@@ -521,6 +575,23 @@ export interface paths {
         };
         /** Get public information for an active shop. */
         get: operations["Storefront_GetShop"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storefront/{shopSlug}/shipping-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List active delivery methods for a shop. */
+        get: operations["Storefront_ShippingMethods_List"];
         put?: never;
         post?: never;
         delete?: never;
@@ -580,6 +651,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/storefront/{shopSlug}/addresses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the authenticated customer's saved delivery addresses. */
+        get: operations["Storefront_Addresses_List"];
+        put?: never;
+        /** Add a saved delivery address for the authenticated customer. */
+        post: operations["Storefront_Addresses_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storefront/{shopSlug}/addresses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete one of the customer's saved addresses. */
+        delete: operations["Storefront_Addresses_Delete"];
+        options?: never;
+        head?: never;
+        /** Update one of the customer's saved addresses. */
+        patch: operations["Storefront_Addresses_Update"];
+        trace?: never;
+    };
+    "/api/v1/storefront/{shopSlug}/addresses/{id}/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a saved address as the customer's default. */
+        post: operations["Storefront_Addresses_SetDefault"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/storefront/{shopSlug}/cart/validate": {
         parameters: {
             query?: never;
@@ -589,7 +713,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Validate cart items against current stock and prices. */
+        /** Validate cart items against current stock, prices, and optional shipping fee. */
         post: operations["Storefront_Cart_Validate"];
         delete?: never;
         options?: never;
@@ -632,6 +756,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/storefront/{shopSlug}/orders/{id}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload a card-to-card payment receipt image (multipart/form-data, field 'file'). */
+        post: operations["Storefront_Orders_UploadReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/storefront/{shopSlug}/orders/{id}/cancel": {
         parameters: {
             query?: never;
@@ -641,7 +782,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cancel the customer's own Pending order and restore stock. */
+        /** Cancel the customer's own cancellable order and restore stock. */
         post: operations["Storefront_Orders_Cancel"];
         delete?: never;
         options?: never;
@@ -693,6 +834,11 @@ export interface components {
         CartValidationResponse: {
             isValid: boolean;
             /** Format: double */
+            subtotalAmount: number | string;
+            /** Format: double */
+            shippingAmount: number | string;
+            isShippingPayAtDestination: boolean;
+            /** Format: double */
             totalAmount: number | string;
             currency: string;
             items: components["schemas"]["ValidatedCartLineDto"][];
@@ -720,6 +866,19 @@ export interface components {
             /** Format: int32 */
             sortOrder: null | number | string;
             isActive: null | boolean;
+        };
+        /** @description Request body of `POST /storefront/{shopSlug}/addresses`. */
+        CreateCustomerAddressRequest: {
+            title: string;
+            recipientName: string;
+            phone: string;
+            province: string;
+            city: string;
+            addressLine: string;
+            plaque?: null | string;
+            unit?: null | string;
+            postalCode?: null | string;
+            isDefault?: null | boolean;
         };
         /** @description Request body of `POST /merchant/customers`. */
         CreateCustomerRequest: {
@@ -750,9 +909,42 @@ export interface components {
             stock: number | string;
             isActive: null | boolean;
         };
+        /** @description Request body of `POST /merchant/shipping-methods`. */
+        CreateShippingMethodRequest: {
+            name: string;
+            description: null | string;
+            /** Format: double */
+            price: number | string;
+            /** Format: double */
+            freeAboveAmount: null | number | string;
+            isPayAtDestination: null | boolean;
+            estimatedDaysText: null | string;
+            /** Format: int32 */
+            sortOrder: null | number | string;
+            isActive: null | boolean;
+        };
         /** @description Request body of `POST /merchant/tags`. */
         CreateTagRequest: {
             name: string;
+        };
+        /** @description A saved delivery address of the authenticated customer. */
+        CustomerAddressDto: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            recipientName: string;
+            phone: string;
+            province: string;
+            city: string;
+            addressLine: string;
+            plaque: null | string;
+            unit: null | string;
+            postalCode: null | string;
+            isDefault: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         /** @description A customer as returned by the merchant back-office. */
         CustomerDto: {
@@ -774,6 +966,8 @@ export interface components {
         CustomerOrderDto: {
             /** Format: uuid */
             id: string;
+            /** Format: int32 */
+            orderNumber: number | string;
             status: string;
             /** Format: double */
             totalAmount: number | string;
@@ -814,7 +1008,7 @@ export interface components {
             logoUrl: null | string;
             defaultProductImageUrl: null | string;
         };
-        /** @description Active shop profile and branding as returned by `/merchant/shop`. */
+        /** @description Active shop profile, branding, and checkout settings returned by `/merchant/shop`. */
         MerchantShopDto: {
             /** Format: uuid */
             id: string;
@@ -825,21 +1019,57 @@ export interface components {
             isActive: boolean;
             logoUrl: null | string;
             defaultProductImageUrl: null | string;
+            requireOrderApproval: boolean;
+            /** Format: int32 */
+            paymentExpiryMinutes: number | string;
+            enableCardToCard: boolean;
+            enablePayOnDelivery: boolean;
+            cardNumber: null | string;
+            cardHolderName: null | string;
+            bankName: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
         };
-        /** @description Full order detail including snapshotted items and status timeline. */
+        /** @description Full order detail including snapshotted items, shipping, payment, and timeline. */
         OrderDetailDto: {
             /** Format: uuid */
             id: string;
+            /** Format: int32 */
+            orderNumber: number | string;
             /** Format: uuid */
             customerId: string;
             customerDisplayName: null | string;
             status: string;
             /** Format: double */
+            subtotalAmount: number | string;
+            /** Format: double */
+            shippingAmount: number | string;
+            /** Format: double */
             totalAmount: number | string;
+            shippingMethodNameSnapshot: null | string;
+            isShippingPayAtDestination: boolean;
+            recipientName: null | string;
+            recipientPhone: null | string;
+            shippingProvince: null | string;
+            shippingCity: null | string;
+            shippingAddressSnapshot: null | string;
+            shippingPostalCode: null | string;
+            paymentMethod: string;
+            paymentStatus: string;
+            receiptUrl: null | string;
+            /** Format: date-time */
+            receiptSubmittedAt: null | string;
+            /** Format: date-time */
+            paymentVerifiedAt: null | string;
+            paymentRejectionReason: null | string;
+            /** Format: date-time */
+            paymentExpiresAt: null | string;
+            carrierName: null | string;
+            trackingCode: null | string;
+            /** Format: date-time */
+            shippedAt: null | string;
             note: null | string;
             /** Format: date-time */
             placedAt: string;
@@ -879,12 +1109,23 @@ export interface components {
         OrderSummaryDto: {
             /** Format: uuid */
             id: string;
+            /** Format: int32 */
+            orderNumber: number | string;
             /** Format: uuid */
             customerId: string;
             customerDisplayName: null | string;
             status: string;
             /** Format: double */
+            subtotalAmount: number | string;
+            /** Format: double */
+            shippingAmount: number | string;
+            /** Format: double */
             totalAmount: number | string;
+            paymentMethod: string;
+            paymentStatus: string;
+            shippingCity: null | string;
+            carrierName: null | string;
+            trackingCode: null | string;
             note: null | string;
             /** Format: date-time */
             placedAt: string;
@@ -969,11 +1210,21 @@ export interface components {
             /** Format: int32 */
             pageSize: number | string;
         };
+        /** @description Request body of `POST /merchant/orders/{id}/payment-decision`. */
+        PaymentDecisionRequest: {
+            approve: boolean;
+            reason?: null | string;
+        };
         /** @description Request body of `POST /storefront/{shopSlug}/orders`. */
         PlaceOrderRequest: {
             items: components["schemas"]["CartLineRequest"][];
-            note: null | string;
-            phone: null | string;
+            note?: null | string;
+            phone?: null | string;
+            /** Format: uuid */
+            addressId?: null | string;
+            /** Format: uuid */
+            shippingMethodId?: null | string;
+            paymentMethod?: null | string;
         };
         ProblemDetails: {
             type?: null | string;
@@ -1015,6 +1266,26 @@ export interface components {
             /** Format: int32 */
             sortOrder: number | string;
             isPrimary: boolean;
+        };
+        /** @description A delivery method configured by the merchant. */
+        ShippingMethodDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description: null | string;
+            /** Format: double */
+            price: number | string;
+            /** Format: double */
+            freeAboveAmount: null | number | string;
+            isPayAtDestination: boolean;
+            estimatedDaysText: null | string;
+            /** Format: int32 */
+            sortOrder: number | string;
+            isActive: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         /** @description One shop setting. string ShopSettingDto.Value is an arbitrary JSON document. */
         ShopSettingDto: {
@@ -1085,6 +1356,21 @@ export interface components {
             stock: number | string;
             primaryImageUrl: null | string;
         };
+        /** @description Active delivery method shown at storefront checkout. */
+        StorefrontShippingMethodDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description: null | string;
+            /** Format: double */
+            price: number | string;
+            /** Format: double */
+            freeAboveAmount: null | number | string;
+            isPayAtDestination: boolean;
+            estimatedDaysText: null | string;
+            /** Format: int32 */
+            sortOrder: number | string;
+        };
         /** @description Public shop metadata returned by `GET /storefront/{shopSlug}`. */
         StorefrontShopDto: {
             /** Format: uuid */
@@ -1095,6 +1381,14 @@ export interface components {
             currency: string;
             logoUrl: null | string;
             defaultProductImageUrl: null | string;
+            requireOrderApproval: boolean;
+            enableCardToCard: boolean;
+            enablePayOnDelivery: boolean;
+            cardNumber: null | string;
+            cardHolderName: null | string;
+            bankName: null | string;
+            /** Format: int32 */
+            paymentExpiryMinutes: number | string;
         };
         /** @description Request body of `POST /api/v1/auth/switch-tenant`. */
         SwitchTenantRequest: {
@@ -1161,6 +1455,19 @@ export interface components {
             sortOrder: null | number | string;
             isActive: null | boolean;
         };
+        /** @description Request body of `PATCH /storefront/{shopSlug}/addresses/{id}`. */
+        UpdateCustomerAddressRequest: {
+            title?: null | string;
+            recipientName?: null | string;
+            phone?: null | string;
+            province?: null | string;
+            city?: null | string;
+            addressLine?: null | string;
+            plaque?: null | string;
+            unit?: null | string;
+            postalCode?: null | string;
+            isDefault?: null | boolean;
+        };
         /** @description Request body of `PATCH /merchant/customers/{id}` — every field optional. */
         UpdateCustomerRequest: {
             displayName: null | string;
@@ -1170,16 +1477,26 @@ export interface components {
         };
         /** @description Request body of `PATCH /merchant/shop` — every field optional. */
         UpdateMerchantShopRequest: {
-            name: null | string;
-            defaultLanguage: null | string;
-            currency: null | string;
+            name?: null | string;
+            defaultLanguage?: null | string;
+            currency?: null | string;
+            requireOrderApproval?: null | boolean;
+            /** Format: int32 */
+            paymentExpiryMinutes?: null | number | string;
+            enableCardToCard?: null | boolean;
+            enablePayOnDelivery?: null | boolean;
+            cardNumber?: null | string;
+            cardHolderName?: null | string;
+            bankName?: null | string;
         };
         /** @description Request body of `PATCH /merchant/orders/{id}/status`. */
         UpdateOrderStatusRequest: {
             status: string;
-            reason: null | string;
+            reason?: null | string;
             /** Format: uint32 */
-            rowVersion: null | number | string;
+            rowVersion?: null | number | string;
+            carrierName?: null | string;
+            trackingCode?: null | string;
         };
         /** @description Request body of `PATCH /merchant/products/{id}/images/{imageId}`. */
         UpdateProductImageRequest: {
@@ -1202,9 +1519,26 @@ export interface components {
         UpdateSettingsRequest: {
             settings: components["schemas"]["ShopSettingDto"][];
         };
+        /** @description Request body of `PATCH /merchant/shipping-methods/{id}` — every field optional. */
+        UpdateShippingMethodRequest: {
+            name?: null | string;
+            description?: null | string;
+            /** Format: double */
+            price?: null | number | string;
+            /** Format: double */
+            freeAboveAmount?: null | number | string;
+            clearFreeAboveAmount?: null | boolean;
+            isPayAtDestination?: null | boolean;
+            estimatedDaysText?: null | string;
+            /** Format: int32 */
+            sortOrder?: null | number | string;
+            isActive?: null | boolean;
+        };
         /** @description Request body of `POST /storefront/{shopSlug}/cart/validate`. */
         ValidateCartRequest: {
             items: components["schemas"]["CartLineRequest"][];
+            /** Format: uuid */
+            shippingMethodId?: null | string;
         };
         /** @description Server-validated status of one cart line. */
         ValidatedCartLineDto: {
@@ -1616,6 +1950,165 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MerchantShopDto"];
+                };
+            };
+        };
+    };
+    Merchant_ShippingMethods_List: {
+        parameters: {
+            query?: {
+                isActive?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShippingMethodDto"][];
+                };
+            };
+        };
+    };
+    Merchant_ShippingMethods_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateShippingMethodRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShippingMethodDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+        };
+    };
+    Merchant_ShippingMethods_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShippingMethodDto"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Merchant_ShippingMethods_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Merchant_ShippingMethods_Update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateShippingMethodRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShippingMethodDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -2742,6 +3235,59 @@ export interface operations {
             };
         };
     };
+    Merchant_Orders_ReviewPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     Merchant_Orders_GetHistory: {
         parameters: {
             query?: never;
@@ -2791,6 +3337,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StorefrontShopDto"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Storefront_ShippingMethods_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shopSlug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorefrontShippingMethodDto"][];
                 };
             };
             /** @description Not Found */
@@ -2903,6 +3480,188 @@ export interface operations {
             };
         };
     };
+    Storefront_Addresses_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shopSlug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAddressDto"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Storefront_Addresses_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shopSlug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCustomerAddressRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAddressDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Storefront_Addresses_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shopSlug: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Storefront_Addresses_Update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shopSlug: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCustomerAddressRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAddressDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Storefront_Addresses_SetDefault: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shopSlug: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAddressDto"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     Storefront_Cart_Validate: {
         parameters: {
             query?: never;
@@ -2938,6 +3697,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3077,6 +3845,71 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Storefront_Orders_UploadReceipt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shopSlug: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailDto"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
