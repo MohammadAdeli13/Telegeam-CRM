@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TelegramCrm.Application.Abstractions;
 using TelegramCrm.Application.Common;
 using TelegramCrm.Domain.Entities;
 using TelegramCrm.Domain.Exceptions;
@@ -12,9 +13,16 @@ namespace TelegramCrm.Application.Merchant;
 /// </summary>
 public sealed class ProductService : MerchantServiceBase
 {
-    public ProductService(IAppDbContext db, ITenantContext tenantContext, IClock clock)
+    private readonly IFileStorageService _storage;
+
+    public ProductService(
+        IAppDbContext db,
+        ITenantContext tenantContext,
+        IClock clock,
+        IFileStorageService storage)
         : base(db, tenantContext, clock)
     {
+        _storage = storage;
     }
 
     public async Task<PagedResult<ProductDto>> ListAsync(
@@ -50,21 +58,26 @@ public sealed class ProductService : MerchantServiceBase
         }
 
         var total = await query.CountAsync(cancellationToken).ConfigureAwait(false);
-        var items = await query
+        var products = await query
             .OrderBy(p => p.Name)
             .Skip((normalizedPage - 1) * normalizedSize)
             .Take(normalizedSize)
-            .Select(p => ToDto(p))
+            .Include(p => p.Images)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return new PagedResult<ProductDto>(items, total, normalizedPage, normalizedSize);
+        return new PagedResult<ProductDto>(
+            products.Select(ToDto).ToList(),
+            total,
+            normalizedPage,
+            normalizedSize);
     }
 
     public async Task<ProductDto> GetAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var product = await Db.Products
             .AsNoTracking()
+            .Include(p => p.Images)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken)
             .ConfigureAwait(false)
             ?? throw NotFound(id);
@@ -105,6 +118,7 @@ public sealed class ProductService : MerchantServiceBase
         CancellationToken cancellationToken = default)
     {
         var product = await Db.Products
+            .Include(p => p.Images)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken)
             .ConfigureAwait(false)
             ?? throw NotFound(id);
@@ -237,6 +251,24 @@ public sealed class ProductService : MerchantServiceBase
     private static NotFoundException NotFound(Guid id) =>
         new("product_not_found", $"Product '{id}' was not found.");
 
-    private static ProductDto ToDto(Product p) =>
-        new(p.Id, p.CategoryId, p.Name, p.NameEn, p.Description, p.Price, p.Stock, p.IsActive, p.CreatedAt, p.UpdatedAt);
+    private ProductDto ToDto(Product p)
+    {
+        var primary = p.Images
+            .OrderByDescending(i => i.IsPrimary)
+            .ThenBy(i => i.SortOrder)
+            .FirstOrDefault();
+
+        return new ProductDto(
+            p.Id,
+            p.CategoryId,
+            p.Name,
+            p.NameEn,
+            p.Description,
+            p.Price,
+            p.Stock,
+            p.IsActive,
+            primary is null ? null : _storage.GetPublicUrl(primary.StoragePath),
+            p.CreatedAt,
+            p.UpdatedAt);
+    }
 }

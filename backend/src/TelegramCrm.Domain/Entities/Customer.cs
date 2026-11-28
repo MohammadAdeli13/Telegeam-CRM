@@ -9,6 +9,8 @@ public class Customer : Entity, ITenantOwned
 
     public long TelegramUserId { get; set; }
 
+    public string? TelegramUsername { get; set; }
+
     public string? DisplayName { get; set; }
 
     public string? Phone { get; set; }

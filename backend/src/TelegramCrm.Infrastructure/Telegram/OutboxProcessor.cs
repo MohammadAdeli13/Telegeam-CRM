@@ -102,16 +102,16 @@ public sealed partial class OutboxProcessor
             ?? throw new InvalidOperationException("Invalid OrderPlacedOutboxPayload.");
 
         var isPersian = string.Equals(payload.ShopLanguage, "fa", StringComparison.OrdinalIgnoreCase);
-        var amount = payload.TotalAmount.ToString("N2", CultureInfo.InvariantCulture);
+        var formattedAmount = FormatAmount(payload.TotalAmount, payload.Currency, isPersian);
         var customerLabel = string.IsNullOrWhiteSpace(payload.CustomerDisplayName)
             ? payload.CustomerTelegramUserId.ToString(CultureInfo.InvariantCulture)
             : payload.CustomerDisplayName;
 
         var text = isPersian
             ? $"سفارش جدید در {payload.ShopName}\nمشتری: {customerLabel}\n" +
-              $"تعداد اقلام: {payload.ItemCount}\nمبلغ کل: {amount} {payload.Currency}"
+              $"تعداد اقلام: {payload.ItemCount}\nمبلغ کل: {formattedAmount}"
             : $"New order in {payload.ShopName}\nCustomer: {customerLabel}\n" +
-              $"Items: {payload.ItemCount}\nTotal: {amount} {payload.Currency}";
+              $"Items: {payload.ItemCount}\nTotal: {formattedAmount}";
 
         foreach (var merchantChatId in payload.MerchantTelegramUserIds.Where(id => id > 0))
         {
@@ -131,9 +131,10 @@ public sealed partial class OutboxProcessor
 
         var isPersian = string.Equals(payload.ShopLanguage, "fa", StringComparison.OrdinalIgnoreCase);
         var shortId = payload.OrderId.ToString("N")[..8];
+        var statusLabel = FormatOrderStatus(payload.ToStatus, isPersian);
         var text = isPersian
-            ? $"وضعیت سفارش #{shortId} در فروشگاه {payload.ShopName} به «{payload.ToStatus}» تغییر یافت."
-            : $"Your order #{shortId} in {payload.ShopName} is now '{payload.ToStatus}'.";
+            ? $"وضعیت سفارش #{shortId} در فروشگاه {payload.ShopName} به «{statusLabel}» تغییر یافت."
+            : $"Your order #{shortId} in {payload.ShopName} is now '{statusLabel}'.";
 
         if (!string.IsNullOrWhiteSpace(payload.Reason))
         {
@@ -173,6 +174,53 @@ public sealed partial class OutboxProcessor
     {
         LogUnknownOutboxType(message.Id, message.Type);
         return Task.CompletedTask;
+    }
+
+    public static string FormatOrderStatus(string status, bool isPersian)
+    {
+        if (!isPersian)
+        {
+            return status;
+        }
+
+        return status switch
+        {
+            "Pending" => "در انتظار تأیید",
+            "Confirmed" => "تأیید شده",
+            "Preparing" => "در حال آماده‌سازی",
+            "Shipped" => "ارسال شده",
+            "Delivered" => "تحویل شده",
+            "Cancelled" => "لغو شده",
+            _ => status,
+        };
+    }
+
+    public static string FormatAmount(decimal amount, string currency, bool isPersian)
+    {
+        var isZeroDecimal = string.Equals(currency, "IRT", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(currency, "IRR", StringComparison.OrdinalIgnoreCase);
+
+        var numeric = amount.ToString(isZeroDecimal ? "N0" : "N2", CultureInfo.InvariantCulture);
+
+        if (isPersian)
+        {
+            var label = currency.ToUpperInvariant() switch
+            {
+                "IRT" => "تومان",
+                "IRR" => "ریال",
+                "USD" => "دلار",
+                "EUR" => "یورو",
+                _ => currency,
+            };
+
+            return $"{numeric} {label}";
+        }
+
+        var enLabel = string.Equals(currency, "IRT", StringComparison.OrdinalIgnoreCase)
+            ? "Toman"
+            : currency;
+
+        return $"{numeric} {enLabel}";
     }
 
     [LoggerMessage(

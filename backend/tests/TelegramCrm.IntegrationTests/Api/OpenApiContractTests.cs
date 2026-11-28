@@ -108,6 +108,9 @@ public sealed class OpenApiContractTests : IClassFixture<CrmApiFactory>
 
         string[] expected =
         [
+            "/api/v1/merchant/shop",
+            "/api/v1/merchant/shop/logo",
+            "/api/v1/merchant/shop/default-product-image",
             "/api/v1/merchant/categories",
             "/api/v1/merchant/categories/{id}",
             "/api/v1/merchant/products",

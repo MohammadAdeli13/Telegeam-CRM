@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:44541"
+      "url": "http://127.0.0.1:11667"
     }
   ],
   "paths": {
@@ -244,6 +244,272 @@
                   "items": {
                     "$ref": "#/components/schemas/MerchantDto"
                   }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/merchant/shop": {
+      "get": {
+        "tags": [
+          "Merchant.Shop"
+        ],
+        "summary": "Get the active shop's profile and branding URLs.",
+        "operationId": "Merchant_Shop_Get",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantShopDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Merchant.Shop"
+        ],
+        "summary": "Update the active shop's name, default language, or currency.",
+        "operationId": "Merchant_Shop_Update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMerchantShopRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantShopDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/merchant/shop/logo": {
+      "post": {
+        "tags": [
+          "Merchant.Shop"
+        ],
+        "summary": "Upload or replace the shop's logo image (multipart/form-data, field 'file').",
+        "operationId": "Merchant_Shop_UploadLogo",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "file"
+                ],
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantShopDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Merchant.Shop"
+        ],
+        "summary": "Remove the shop's custom logo image.",
+        "operationId": "Merchant_Shop_DeleteLogo",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantShopDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/merchant/shop/default-product-image": {
+      "post": {
+        "tags": [
+          "Merchant.Shop"
+        ],
+        "summary": "Upload or replace the default placeholder image used when a product has no images.",
+        "operationId": "Merchant_Shop_UploadDefaultProductImage",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "file"
+                ],
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantShopDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Merchant.Shop"
+        ],
+        "summary": "Remove the shop's default product placeholder image.",
+        "operationId": "Merchant_Shop_DeleteDefaultProductImage",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantShopDto"
                 }
               }
             }
@@ -2753,6 +3019,7 @@
         "required": [
           "id",
           "telegramUserId",
+          "username",
           "firstName",
           "lastName",
           "languageCode"
@@ -2770,6 +3037,12 @@
               "string"
             ],
             "format": "int64"
+          },
+          "username": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "firstName": {
             "type": [
@@ -2986,6 +3259,12 @@
               "null",
               "string"
             ]
+          },
+          "telegramUsername": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "Request body of `POST /merchant/customers`."
@@ -3092,6 +3371,7 @@
         "required": [
           "id",
           "telegramUserId",
+          "telegramUsername",
           "displayName",
           "phone",
           "notes",
@@ -3112,6 +3392,12 @@
               "string"
             ],
             "format": "int64"
+          },
+          "telegramUsername": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "displayName": {
             "type": [
@@ -3266,7 +3552,9 @@
           "defaultLanguage",
           "currency",
           "isActive",
-          "role"
+          "role",
+          "logoUrl",
+          "defaultProductImageUrl"
         ],
         "type": "object",
         "properties": {
@@ -3291,9 +3579,78 @@
           },
           "role": {
             "type": "string"
+          },
+          "logoUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultProductImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "A shop owned by the caller, as returned by `GET /api/v1/merchants/mine`."
+      },
+      "MerchantShopDto": {
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "defaultLanguage",
+          "currency",
+          "isActive",
+          "logoUrl",
+          "defaultProductImageUrl",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "defaultLanguage": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "logoUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultProductImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "Active shop profile and branding as returned by `/merchant/shop`."
       },
       "OrderDetailDto": {
         "required": [
@@ -3567,7 +3924,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a collection, as returned by every list endpoint\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
+        "description": "One page of a collection, as returned by every list endpoint\r\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
       },
       "PagedResultOfCustomerDto": {
         "required": [
@@ -3609,7 +3966,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a collection, as returned by every list endpoint\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
+        "description": "One page of a collection, as returned by every list endpoint\r\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
       },
       "PagedResultOfCustomerOrderDto": {
         "required": [
@@ -3651,7 +4008,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a collection, as returned by every list endpoint\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
+        "description": "One page of a collection, as returned by every list endpoint\r\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
       },
       "PagedResultOfOrderSummaryDto": {
         "required": [
@@ -3693,7 +4050,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a collection, as returned by every list endpoint\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
+        "description": "One page of a collection, as returned by every list endpoint\r\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
       },
       "PagedResultOfProductDto": {
         "required": [
@@ -3735,7 +4092,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a collection, as returned by every list endpoint\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
+        "description": "One page of a collection, as returned by every list endpoint\r\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
       },
       "PagedResultOfStorefrontProductSummaryDto": {
         "required": [
@@ -3777,7 +4134,7 @@
             "format": "int32"
           }
         },
-        "description": "One page of a collection, as returned by every list endpoint\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
+        "description": "One page of a collection, as returned by every list endpoint\r\n(`?page=&amp;pageSize=` per contract v1.2 §4)."
       },
       "PlaceOrderRequest": {
         "required": [
@@ -3856,6 +4213,7 @@
           "price",
           "stock",
           "isActive",
+          "primaryImageUrl",
           "createdAt",
           "updatedAt"
         ],
@@ -3902,6 +4260,12 @@
           },
           "isActive": {
             "type": "boolean"
+          },
+          "primaryImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "createdAt": {
             "type": "string",
@@ -4226,7 +4590,9 @@
           "slug",
           "name",
           "defaultLanguage",
-          "currency"
+          "currency",
+          "logoUrl",
+          "defaultProductImageUrl"
         ],
         "type": "object",
         "properties": {
@@ -4245,6 +4611,18 @@
           },
           "currency": {
             "type": "string"
+          },
+          "logoUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultProductImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "Public shop metadata returned by `GET /storefront/{shopSlug}`."
@@ -4430,7 +4808,11 @@
           "id",
           "slug",
           "name",
-          "role"
+          "role",
+          "defaultLanguage",
+          "currency",
+          "logoUrl",
+          "defaultProductImageUrl"
         ],
         "type": "object",
         "properties": {
@@ -4446,6 +4828,24 @@
           },
           "role": {
             "type": "string"
+          },
+          "defaultLanguage": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultProductImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "A shop the caller belongs to, as returned by the auth and merchant endpoints."
@@ -4521,9 +4921,44 @@
               "null",
               "string"
             ]
+          },
+          "telegramUsername": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "Request body of `PATCH /merchant/customers/{id}` — every field optional."
+      },
+      "UpdateMerchantShopRequest": {
+        "required": [
+          "name",
+          "defaultLanguage",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultLanguage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Request body of `PATCH /merchant/shop` — every field optional."
       },
       "UpdateOrderStatusRequest": {
         "required": [
@@ -4752,6 +5187,9 @@
     },
     {
       "name": "Merchants"
+    },
+    {
+      "name": "Merchant.Shop"
     },
     {
       "name": "Merchant.Categories"

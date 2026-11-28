@@ -34,7 +34,8 @@ public sealed class CustomerService : MerchantServiceBase
 #pragma warning disable CA1304, CA1311
             query = query.Where(c =>
                 (c.DisplayName != null && EF.Functions.Like(c.DisplayName.ToLower(), pattern, SearchPattern.EscapeChar)) ||
-                (c.Phone != null && EF.Functions.Like(c.Phone.ToLower(), pattern, SearchPattern.EscapeChar)));
+                (c.Phone != null && EF.Functions.Like(c.Phone.ToLower(), pattern, SearchPattern.EscapeChar)) ||
+                (c.TelegramUsername != null && EF.Functions.Like(c.TelegramUsername.ToLower(), pattern, SearchPattern.EscapeChar)));
 #pragma warning restore CA1304, CA1311
         }
 
@@ -89,11 +90,25 @@ public sealed class CustomerService : MerchantServiceBase
                 $"A customer with Telegram user id {request.TelegramUserId} already exists in this shop.");
         }
 
+        var username = TelegramUsernameHelper.Normalize(request.TelegramUsername);
+        if (username is null)
+        {
+            var platformUsername = await Db.Users
+                .AsNoTracking()
+                .Where(u => u.TelegramUserId == request.TelegramUserId)
+                .Select(u => u.Username)
+                .FirstOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            username = TelegramUsernameHelper.Normalize(platformUsername);
+        }
+
         var now = Clock.UtcNow;
         var customer = new Customer
         {
             TenantId = TenantId,
             TelegramUserId = request.TelegramUserId,
+            TelegramUsername = username,
             DisplayName = request.DisplayName?.Trim(),
             Phone = request.Phone?.Trim(),
             Notes = request.Notes,
@@ -118,6 +133,11 @@ public sealed class CustomerService : MerchantServiceBase
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken)
             .ConfigureAwait(false)
             ?? throw NotFound(id);
+
+        if (request.TelegramUsername is not null)
+        {
+            customer.TelegramUsername = TelegramUsernameHelper.Normalize(request.TelegramUsername);
+        }
 
         if (request.DisplayName is not null)
         {
@@ -289,6 +309,7 @@ public sealed class CustomerService : MerchantServiceBase
         new(
             c.Id,
             c.TelegramUserId,
+            c.TelegramUsername,
             c.DisplayName,
             c.Phone,
             c.Notes,

@@ -1,6 +1,29 @@
 namespace TelegramCrm.Application.Merchant;
 
 // ---------------------------------------------------------------------------
+// Shop profile & branding
+// ---------------------------------------------------------------------------
+
+/// <summary>Active shop profile and branding as returned by <c>/merchant/shop</c>.</summary>
+public sealed record MerchantShopDto(
+    Guid Id,
+    string Slug,
+    string Name,
+    string DefaultLanguage,
+    string Currency,
+    bool IsActive,
+    string? LogoUrl,
+    string? DefaultProductImageUrl,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
+/// <summary>Request body of <c>PATCH /merchant/shop</c> — every field optional.</summary>
+public sealed record UpdateMerchantShopRequest(
+    string? Name,
+    string? DefaultLanguage,
+    string? Currency);
+
+// ---------------------------------------------------------------------------
 // Categories — contract v1.2 §4.3
 // ---------------------------------------------------------------------------
 
@@ -45,6 +68,7 @@ public sealed record ProductDto(
     decimal Price,
     int Stock,
     bool IsActive,
+    string? PrimaryImageUrl,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
@@ -98,6 +122,7 @@ public sealed record UpdateProductImageRequest(string? AltText, int? SortOrder);
 public sealed record CustomerDto(
     Guid Id,
     long TelegramUserId,
+    string? TelegramUsername,
     string? DisplayName,
     string? Phone,
     string? Notes,
@@ -110,10 +135,15 @@ public sealed record CreateCustomerRequest(
     long TelegramUserId,
     string? DisplayName,
     string? Phone,
-    string? Notes);
+    string? Notes,
+    string? TelegramUsername = null);
 
 /// <summary>Request body of <c>PATCH /merchant/customers/{id}</c> — every field optional.</summary>
-public sealed record UpdateCustomerRequest(string? DisplayName, string? Phone, string? Notes);
+public sealed record UpdateCustomerRequest(
+    string? DisplayName,
+    string? Phone,
+    string? Notes,
+    string? TelegramUsername = null);
 
 /// <summary>A tag as returned by the merchant back-office.</summary>
 public sealed record TagDto(Guid Id, string Name, DateTimeOffset CreatedAt);
