@@ -299,9 +299,10 @@ async function run() {
     await merchantPage.getByRole('button', { name: 'جزئیات' }).first().waitFor({ timeout: 10000 });
     await merchantPage.getByRole('button', { name: 'جزئیات' }).first().click();
 
-    await merchantPage.getByRole('button', { name: 'تغییر به «تأیید شده»' }).waitFor({ timeout: 10000 });
-    await merchantPage.getByRole('button', { name: 'تغییر به «تأیید شده»' }).click();
     await merchantPage.getByText('تأیید شده').first().waitFor({ timeout: 10000 });
+    await merchantPage.getByRole('button', { name: 'تغییر به «در حال آماده‌سازی»' }).waitFor({ timeout: 10000 });
+    await merchantPage.getByRole('button', { name: 'تغییر به «در حال آماده‌سازی»' }).click();
+    await merchantPage.getByText('در حال آماده‌سازی').first().waitFor({ timeout: 10000 });
 
     const merchantLocalStorage = await merchantPage.evaluate(() => window.localStorage.length);
     assert.equal(merchantLocalStorage, 0, 'Merchant panel must not write to localStorage');
