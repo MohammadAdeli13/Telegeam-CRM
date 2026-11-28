@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Eye, RefreshCw } from 'lucide-react';
+import { Eye, RefreshCw, ShoppingBag } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useOutletContext, useParams } from 'react-router';
@@ -42,20 +42,23 @@ export function StorefrontOrdersPage() {
 
   if (!isAuthenticated) {
     return (
-      <EmptyState
-        title={t('storefront.myOrdersTitle')}
-        description={t('storefront.myOrdersLoginRequired')}
-        action={
-          <Button asChild>
-            <Link to="/auth">{t('storefront.goToSignIn')}</Link>
-          </Button>
-        }
-      />
+      <div className="mx-auto max-w-lg py-4">
+        <EmptyState
+          icon={<ShoppingBag className="size-6" aria-hidden="true" />}
+          title={t('storefront.myOrdersTitle')}
+          description={t('storefront.myOrdersLoginRequired')}
+          action={
+            <Button asChild>
+              <Link to="/auth">{t('storefront.goToSignIn')}</Link>
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-bold tracking-tight text-foreground">
           {t('storefront.myOrdersTitle')}
@@ -77,7 +80,8 @@ export function StorefrontOrdersPage() {
         <ErrorState onRetry={() => void ordersQuery.refetch()} />
       ) : !ordersQuery.data || ordersQuery.data.items.length === 0 ? (
         <EmptyState
-          title={t('storefront.myOrdersTitle')}
+          icon={<ShoppingBag className="size-6" aria-hidden="true" />}
+          title=""
           description={t('storefront.myOrdersEmpty')}
           action={
             <Button asChild>
@@ -93,7 +97,7 @@ export function StorefrontOrdersPage() {
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="tabular-nums text-sm font-bold text-foreground" dir="ltr">
-                      #{order.id.slice(0, 8)}
+                      #{order.id.slice(0, 8).toUpperCase()}
                     </span>
                     <OrderStatusBadge status={order.status} />
                   </div>

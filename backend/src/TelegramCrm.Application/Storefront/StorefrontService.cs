@@ -58,7 +58,13 @@ public sealed class StorefrontService
             tenant.Slug,
             tenant.Name,
             tenant.DefaultLanguage,
-            tenant.Currency);
+            tenant.Currency,
+            string.IsNullOrWhiteSpace(tenant.LogoStoragePath)
+                ? null
+                : _storage.GetPublicUrl(tenant.LogoStoragePath),
+            string.IsNullOrWhiteSpace(tenant.DefaultProductImageStoragePath)
+                ? null
+                : _storage.GetPublicUrl(tenant.DefaultProductImageStoragePath));
     }
 
     public async Task<IReadOnlyList<StorefrontCategoryDto>> ListCategoriesAsync(
@@ -394,7 +400,7 @@ public sealed class StorefrontService
                 ToStatus = OrderStatus.Pending,
                 ActorUserId = _currentUser.UserId,
                 ActorRole = "Customer",
-                Reason = "Order placed.",
+                Reason = null,
                 OccurredAt = now,
                 CreatedAt = now,
                 UpdatedAt = now,
@@ -546,24 +552,6 @@ public sealed class StorefrontService
         string? phone,
         CancellationToken cancellationToken)
     {
-        var customer = await _db.Customers
-            .FirstOrDefaultAsync(c => c.TelegramUserId == telegramUserId, cancellationToken)
-            .ConfigureAwait(false);
-
-        var now = _clock.UtcNow;
-
-        if (customer is not null)
-        {
-            if (!string.IsNullOrWhiteSpace(phone) && !string.Equals(customer.Phone, phone.Trim(), StringComparison.Ordinal))
-            {
-                customer.Phone = phone.Trim();
-                customer.UpdatedAt = now;
-                await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-            return customer;
-        }
-
         var user = await _db.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.TelegramUserId == telegramUserId, cancellationToken)
@@ -572,12 +560,52 @@ public sealed class StorefrontService
         var displayName = user is null
             ? null
             : string.Join(" ", new[] { user.FirstName, user.LastName }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        var normalizedDisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName;
+        var normalizedUsername = TelegramUsernameHelper.Normalize(user?.Username);
+
+        var customer = await _db.Customers
+            .FirstOrDefaultAsync(c => c.TelegramUserId == telegramUserId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var now = _clock.UtcNow;
+
+        if (customer is not null)
+        {
+            var modified = false;
+
+            if (!string.IsNullOrWhiteSpace(phone) && !string.Equals(customer.Phone, phone.Trim(), StringComparison.Ordinal))
+            {
+                customer.Phone = phone.Trim();
+                modified = true;
+            }
+
+            if (user is not null && !string.Equals(customer.TelegramUsername, normalizedUsername, StringComparison.Ordinal))
+            {
+                customer.TelegramUsername = normalizedUsername;
+                modified = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(customer.DisplayName) && normalizedDisplayName is not null)
+            {
+                customer.DisplayName = normalizedDisplayName;
+                modified = true;
+            }
+
+            if (modified)
+            {
+                customer.UpdatedAt = now;
+                await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            return customer;
+        }
 
         customer = new Customer
         {
             TenantId = tenantId,
             TelegramUserId = telegramUserId,
-            DisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName,
+            TelegramUsername = normalizedUsername,
+            DisplayName = normalizedDisplayName,
             Phone = string.IsNullOrWhiteSpace(phone) ? null : phone.Trim(),
             CreatedAt = now,
             UpdatedAt = now,

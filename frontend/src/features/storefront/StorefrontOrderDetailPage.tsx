@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, ShoppingBag, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useOutletContext, useParams, useSearchParams } from 'react-router';
 import { useAuth } from '@/features/auth/auth-context';
 import { apiClient, extractProblemMessage } from '@/shared/api/client';
-import { formatDate, formatMoney, toNumber } from '@/shared/lib/format';
+import { formatDate, formatMoney, formatNumber, toNumber } from '@/shared/lib/format';
 import { getDirection, normalizeLanguage } from '@/shared/lib/i18n';
+import { triggerHaptic } from '@/shared/lib/telegram';
 import { Button } from '@/shared/ui/button';
 import { Card } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
@@ -68,6 +69,7 @@ export function StorefrontOrderDetailPage() {
       return data;
     },
     onSuccess: () => {
+      triggerHaptic('success');
       setShowCancelBox(false);
       setCancelReason('');
       setErrorMsg(null);
@@ -78,21 +80,25 @@ export function StorefrontOrderDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ['storefront-products', shopSlug] });
     },
     onError: (err) => {
+      triggerHaptic('error');
       setErrorMsg(extractProblemMessage(err, t('app.errorGeneric')));
     },
   });
 
   if (!isAuthenticated) {
     return (
-      <EmptyState
-        title={t('storefront.myOrdersTitle')}
-        description={t('storefront.myOrdersLoginRequired')}
-        action={
-          <Button asChild>
-            <Link to="/auth">{t('storefront.goToSignIn')}</Link>
-          </Button>
-        }
-      />
+      <div className="mx-auto max-w-lg py-4">
+        <EmptyState
+          icon={<ShoppingBag className="size-6" aria-hidden="true" />}
+          title={t('storefront.myOrdersTitle')}
+          description={t('storefront.myOrdersLoginRequired')}
+          action={
+            <Button asChild>
+              <Link to="/auth">{t('storefront.goToSignIn')}</Link>
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
@@ -107,16 +113,16 @@ export function StorefrontOrderDetailPage() {
   const order = orderQuery.data;
   if (!order) {
     return (
-      <div className="space-y-4">
+      <div className="mx-auto max-w-lg py-6">
         <ErrorState
           title={t('storefront.orderNotFoundTitle')}
           message={t('storefront.orderNotFoundDesc')}
+          action={
+            <Button asChild variant="outline">
+              <Link to={`/s/${shopSlug}/orders`}>{t('storefront.backToOrders')}</Link>
+            </Button>
+          }
         />
-        <div className="flex justify-center">
-          <Button asChild variant="outline">
-            <Link to={`/s/${shopSlug}/orders`}>{t('storefront.backToOrders')}</Link>
-          </Button>
-        </div>
       </div>
     );
   }
@@ -124,7 +130,7 @@ export function StorefrontOrderDetailPage() {
   const canCancel = order.status === 'Pending';
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-3xl space-y-4">
       <Button asChild variant="ghost" size="sm" className="px-2">
         <Link to={`/s/${shopSlug}/orders`}>
           <BackIcon className="size-4" aria-hidden="true" />
@@ -146,7 +152,7 @@ export function StorefrontOrderDetailPage() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="tabular-nums text-base font-bold text-foreground" dir="ltr">
-              {t('orders.orderNumber', { id: order.id.slice(0, 8) })}
+              {t('orders.orderNumber', { id: order.id.slice(0, 8).toUpperCase() })}
             </h1>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {formatDate(order.placedAt, lang)}
@@ -179,7 +185,7 @@ export function StorefrontOrderDetailPage() {
               <div className="min-w-0">
                 <p className="truncate font-medium text-foreground">{item.productNameSnapshot}</p>
                 <p className="tabular-nums text-xs text-muted-foreground">
-                  {t('orders.quantity', { count: toNumber(item.quantity) })} ×{' '}
+                  {t('orders.quantity', { count: formatNumber(toNumber(item.quantity), lang) })} ×{' '}
                   {formatMoney(item.unitPrice, shop.currency, lang)}
                 </p>
               </div>
@@ -250,7 +256,10 @@ export function StorefrontOrderDetailPage() {
               type="button"
               variant="destructive"
               className="w-full"
-              onClick={() => setShowCancelBox(true)}
+              onClick={() => {
+                triggerHaptic('warning');
+                setShowCancelBox(true);
+              }}
             >
               <XCircle className="size-4" aria-hidden="true" />
               <span>{t('storefront.cancelOrderButton')}</span>
@@ -263,20 +272,29 @@ export function StorefrontOrderDetailPage() {
       <Card className="space-y-2.5">
         <h2 className="text-sm font-semibold text-foreground">{t('orders.timelineTitle')}</h2>
         <ol className="space-y-2">
-          {order.statusHistory.map((entry) => (
-            <li
-              key={entry.id}
-              className="rounded-lg border border-border bg-background px-3 py-2 text-xs"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <OrderStatusBadge status={entry.toStatus} />
-                <span className="tabular-nums text-muted-foreground">
-                  {formatDate(entry.occurredAt, lang)}
-                </span>
-              </div>
-              {entry.reason ? <p className="mt-1 text-foreground">{entry.reason}</p> : null}
-            </li>
-          ))}
+          {order.statusHistory.map((entry) => {
+            const noteText =
+              entry.reason && entry.reason !== 'Order placed.'
+                ? entry.reason
+                : entry.fromStatus === null
+                  ? t('orders.orderPlacedEvent')
+                  : null;
+
+            return (
+              <li
+                key={entry.id}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-xs"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <OrderStatusBadge status={entry.toStatus} />
+                  <span className="tabular-nums text-muted-foreground">
+                    {formatDate(entry.occurredAt, lang)}
+                  </span>
+                </div>
+                {noteText ? <p className="mt-1 text-foreground">{noteText}</p> : null}
+              </li>
+            );
+          })}
         </ol>
       </Card>
     </div>

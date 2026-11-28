@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -7,15 +7,23 @@ import {
   Plus,
   RefreshCw,
   ShoppingBag,
+  ShoppingCart,
   Trash2,
 } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
 import { useAuth } from '@/features/auth/auth-context';
 import { apiClient, extractProblemCode, extractProblemMessage } from '@/shared/api/client';
-import { formatMoney, toNumber } from '@/shared/lib/format';
+import {
+  formatMoney,
+  formatNumber,
+  isValidOptionalPhone,
+  normalizePhoneToE164,
+  toNumber,
+} from '@/shared/lib/format';
 import { normalizeLanguage } from '@/shared/lib/i18n';
+import { triggerHaptic } from '@/shared/lib/telegram';
 import { Button } from '@/shared/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
@@ -24,10 +32,8 @@ import { EmptyState } from '@/shared/ui/state-views';
 import { Textarea } from '@/shared/ui/textarea';
 import type { components } from '@/types/api';
 import { useStorefrontCart } from './cart-context';
-import { isValidOptionalE164Phone } from './cart-store';
 
 type StorefrontShop = components['schemas']['StorefrontShopDto'];
-type CartValidationResponse = components['schemas']['CartValidationResponse'];
 
 export function StorefrontCartPage() {
   const { t, i18n } = useTranslation();
@@ -36,19 +42,20 @@ export function StorefrontCartPage() {
   const { shopSlug = '' } = useParams();
   const shop = useOutletContext<StorefrontShop>();
   const { status: authStatus } = useAuth();
-  const { items, subtotal, idempotencyKey, setQuantity, removeItem, clearCart } =
-    useStorefrontCart();
+  const { items, subtotal, idempotencyKey, setQuantity, clearCart } = useStorefrontCart();
 
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
-  const [validation, setValidation] = useState<CartValidationResponse | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   const lang = normalizeLanguage(i18n.language);
   const isAuthenticated = authStatus === 'authenticated';
+  const cartSignature = items.map((i) => `${i.productId}:${i.quantity}`).join('|');
 
-  const validateMutation = useMutation({
-    mutationFn: async () => {
+  const validateQuery = useQuery({
+    queryKey: ['storefront-cart-validate', shopSlug, cartSignature],
+    enabled: isAuthenticated && items.length > 0 && Boolean(shopSlug),
+    queryFn: async () => {
       const { data, error } = await apiClient.POST('/api/v1/storefront/{shopSlug}/cart/validate', {
         params: { path: { shopSlug } },
         body: {
@@ -63,20 +70,13 @@ export function StorefrontCartPage() {
       }
       return data;
     },
-    onSuccess: (data) => {
-      setValidation(data);
-    },
   });
 
-  // Reset stale server validation whenever cart lines change.
-  const cartSignature = items.map((i) => `${i.productId}:${i.quantity}`).join('|');
-  useEffect(() => {
-    setValidation(null);
-    setFormError(null);
-  }, [cartSignature]);
+  const validation = validateQuery.data ?? null;
 
   const placeOrderMutation = useMutation({
     mutationFn: async () => {
+      const normalizedPhone = normalizePhoneToE164(phone);
       const { data, error } = await apiClient.POST('/api/v1/storefront/{shopSlug}/orders', {
         params: {
           path: { shopSlug },
@@ -88,7 +88,7 @@ export function StorefrontCartPage() {
             quantity: item.quantity,
           })),
           note: note.trim() || null,
-          phone: phone.trim() || null,
+          phone: normalizedPhone || null,
         },
       });
       if (error || !data) {
@@ -97,15 +97,17 @@ export function StorefrontCartPage() {
       return data;
     },
     onSuccess: (order) => {
+      triggerHaptic('success');
       clearCart();
       void queryClient.invalidateQueries({ queryKey: ['storefront-orders', shopSlug] });
       void queryClient.invalidateQueries({ queryKey: ['storefront-products', shopSlug] });
       void navigate(`/s/${shopSlug}/orders/${order.id}?placed=1`, { replace: true });
     },
     onError: (err) => {
+      triggerHaptic('error');
       const code = extractProblemCode(err);
       if (code === 'insufficient_stock' || code === 'product_not_available') {
-        validateMutation.mutate();
+        void validateQuery.refetch();
       }
       setFormError(extractProblemMessage(err, t('app.errorGeneric')));
     },
@@ -115,7 +117,8 @@ export function StorefrontCartPage() {
     event.preventDefault();
     setFormError(null);
 
-    if (!isValidOptionalE164Phone(phone)) {
+    if (!isValidOptionalPhone(phone)) {
+      triggerHaptic('error');
       setFormError(t('storefront.phoneInvalid'));
       return;
     }
@@ -125,15 +128,18 @@ export function StorefrontCartPage() {
 
   if (items.length === 0) {
     return (
-      <EmptyState
-        title={t('storefront.cartTitle')}
-        description={t('storefront.cartEmpty')}
-        action={
-          <Button asChild>
-            <Link to={`/s/${shopSlug}`}>{t('storefront.continueShopping')}</Link>
-          </Button>
-        }
-      />
+      <div className="mx-auto max-w-lg py-4">
+        <EmptyState
+          icon={<ShoppingCart className="size-6" aria-hidden="true" />}
+          title={t('storefront.cartTitle')}
+          description={t('storefront.cartEmpty')}
+          action={
+            <Button asChild>
+              <Link to={`/s/${shopSlug}`}>{t('storefront.continueShopping')}</Link>
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
@@ -142,7 +148,7 @@ export function StorefrontCartPage() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-bold tracking-tight text-foreground">
           {t('storefront.cartTitle')}
@@ -151,7 +157,10 @@ export function StorefrontCartPage() {
           type="button"
           variant="ghost"
           size="sm"
-          onClick={clearCart}
+          onClick={() => {
+            triggerHaptic('warning');
+            clearCart();
+          }}
           className="text-destructive hover:bg-destructive/10"
         >
           <Trash2 className="size-4" aria-hidden="true" />
@@ -167,20 +176,21 @@ export function StorefrontCartPage() {
           const availableStock = serverLine ? toNumber(serverLine.availableStock) : item.stock;
           const unitPrice = serverLine ? toNumber(serverLine.unitPrice) : item.unitPrice;
           const hasIssue = Boolean(serverLine && !serverLine.isAvailable);
+          const thumbUrl = item.imageUrl ?? shop.defaultProductImageUrl ?? null;
 
           return (
             <Card
               key={item.productId}
-              className={hasIssue ? 'space-y-2.5 border-destructive/50' : 'space-y-2.5'}
+              className={hasIssue ? 'space-y-3 border-destructive/50' : 'space-y-3'}
             >
               <div className="flex items-start gap-3">
                 <Link
                   to={`/s/${shopSlug}/products/${item.productId}`}
                   className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-elevated"
                 >
-                  {item.imageUrl ? (
+                  {thumbUrl ? (
                     <img
-                      src={item.imageUrl}
+                      src={thumbUrl}
                       alt={title}
                       loading="lazy"
                       className="size-full object-cover"
@@ -198,39 +208,41 @@ export function StorefrontCartPage() {
                     {title}
                   </Link>
                   <p className="tabular-nums text-xs text-muted-foreground">
-                    {formatMoney(unitPrice, shop.currency, lang)} × {item.quantity}
+                    <span>{formatMoney(unitPrice, shop.currency, lang)}</span>
+                    <span className="mx-1">×</span>
+                    <span>{formatNumber(item.quantity, lang)}</span>
                   </p>
                   <p className="tabular-nums text-sm font-bold text-primary">
                     {formatMoney(unitPrice * item.quantity, shop.currency, lang)}
                   </p>
                 </div>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={t('storefront.removeItem')}
-                  onClick={() => removeItem(item.productId)}
-                  className="size-9 shrink-0 text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="size-4" aria-hidden="true" />
-                </Button>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
-                <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-1">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2.5">
+                <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    aria-label={t('storefront.decreaseQty')}
-                    onClick={() => setQuantity(item.productId, item.quantity - 1)}
-                    className="size-9"
+                    aria-label={
+                      item.quantity === 1
+                        ? t('storefront.removeItem')
+                        : t('storefront.decreaseQty')
+                    }
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setQuantity(item.productId, item.quantity - 1);
+                    }}
+                    className={item.quantity === 1 ? 'text-destructive' : undefined}
                   >
-                    <Minus className="size-3.5" aria-hidden="true" />
+                    {item.quantity === 1 ? (
+                      <Trash2 className="size-4" aria-hidden="true" />
+                    ) : (
+                      <Minus className="size-4" aria-hidden="true" />
+                    )}
                   </Button>
-                  <span className="tabular-nums min-w-7 text-center text-sm font-bold text-foreground">
-                    {item.quantity}
+                  <span className="tabular-nums min-w-8 text-center text-sm font-bold text-foreground">
+                    {formatNumber(item.quantity, lang)}
                   </span>
                   <Button
                     type="button"
@@ -238,10 +250,12 @@ export function StorefrontCartPage() {
                     size="icon"
                     aria-label={t('storefront.increaseQty')}
                     disabled={availableStock > 0 && item.quantity >= availableStock}
-                    onClick={() => setQuantity(item.productId, item.quantity + 1)}
-                    className="size-9"
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setQuantity(item.productId, item.quantity + 1);
+                    }}
                   >
-                    <Plus className="size-3.5" aria-hidden="true" />
+                    <Plus className="size-4" aria-hidden="true" />
                   </Button>
                 </div>
 
@@ -251,7 +265,9 @@ export function StorefrontCartPage() {
                       <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
                       <span>
                         {serverLine.issue === 'insufficient_stock'
-                          ? t('storefront.issueOutOfStock', { available: availableStock })
+                          ? t('storefront.issueOutOfStock', {
+                              available: formatNumber(availableStock, lang),
+                            })
                           : t('storefront.issueUnavailable')}
                       </span>
                     </span>
@@ -262,7 +278,9 @@ export function StorefrontCartPage() {
                         size="sm"
                         onClick={() => setQuantity(item.productId, availableStock)}
                       >
-                        {t('storefront.adjustToAvailable', { available: availableStock })}
+                        {t('storefront.adjustToAvailable', {
+                          available: formatNumber(availableStock, lang),
+                        })}
                       </Button>
                     ) : null}
                   </div>
@@ -273,7 +291,7 @@ export function StorefrontCartPage() {
         })}
       </div>
 
-      {/* Totals & Validation */}
+      {/* Totals & Auto-Validation */}
       <Card className="space-y-3">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
@@ -286,22 +304,6 @@ export function StorefrontCartPage() {
 
         {isAuthenticated ? (
           <div className="space-y-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={validateMutation.isPending}
-              onClick={() => validateMutation.mutate()}
-              className="w-full"
-            >
-              <RefreshCw className="size-4" aria-hidden="true" />
-              <span>
-                {validateMutation.isPending
-                  ? t('storefront.validatingCart')
-                  : t('storefront.validateCart')}
-              </span>
-            </Button>
-
             {validation ? (
               <p
                 role="status"
@@ -321,6 +323,25 @@ export function StorefrontCartPage() {
                 </span>
               </p>
             ) : null}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={validateQuery.isFetching}
+              onClick={() => void validateQuery.refetch()}
+              className="w-full"
+            >
+              <RefreshCw
+                className={validateQuery.isFetching ? 'size-4 animate-spin' : 'size-4'}
+                aria-hidden="true"
+              />
+              <span>
+                {validateQuery.isFetching
+                  ? t('storefront.validatingCart')
+                  : t('storefront.validateCart')}
+              </span>
+            </Button>
           </div>
         ) : null}
       </Card>
@@ -339,8 +360,14 @@ export function StorefrontCartPage() {
                 id="checkout-phone"
                 dir="ltr"
                 type="tel"
+                inputMode="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  if (formError) {
+                    setFormError(null);
+                  }
+                }}
                 placeholder={t('storefront.phonePlaceholder')}
               />
             </div>
@@ -367,7 +394,9 @@ export function StorefrontCartPage() {
 
             <Button
               type="submit"
-              disabled={placeOrderMutation.isPending || (validation !== null && !validation.isValid)}
+              disabled={
+                placeOrderMutation.isPending || (validation !== null && !validation.isValid)
+              }
               className="w-full"
             >
               <ShoppingBag className="size-4" aria-hidden="true" />

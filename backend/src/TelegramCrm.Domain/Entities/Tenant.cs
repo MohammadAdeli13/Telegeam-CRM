@@ -14,9 +14,13 @@ public class Tenant : Entity
 
     public string DefaultLanguage { get; set; } = "fa";
 
-    public string Currency { get; set; } = "IRR";
+    public string Currency { get; set; } = "IRT";
 
     public bool IsActive { get; set; } = true;
+
+    public string? LogoStoragePath { get; set; }
+
+    public string? DefaultProductImageStoragePath { get; set; }
 
     public ICollection<TenantMember> Members { get; set; } = new List<TenantMember>();
 }

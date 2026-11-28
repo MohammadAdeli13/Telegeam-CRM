@@ -106,6 +106,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/merchant/shop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the active shop's profile and branding URLs. */
+        get: operations["Merchant_Shop_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update the active shop's name, default language, or currency. */
+        patch: operations["Merchant_Shop_Update"];
+        trace?: never;
+    };
+    "/api/v1/merchant/shop/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload or replace the shop's logo image (multipart/form-data, field 'file'). */
+        post: operations["Merchant_Shop_UploadLogo"];
+        /** Remove the shop's custom logo image. */
+        delete: operations["Merchant_Shop_DeleteLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/shop/default-product-image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload or replace the default placeholder image used when a product has no images. */
+        post: operations["Merchant_Shop_UploadDefaultProductImage"];
+        /** Remove the shop's default product placeholder image. */
+        delete: operations["Merchant_Shop_DeleteDefaultProductImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/merchant/categories": {
         parameters: {
             query?: never;
@@ -619,6 +673,7 @@ export interface components {
             id: string;
             /** Format: int64 */
             telegramUserId: number | string;
+            username: null | string;
             firstName: null | string;
             lastName: null | string;
             languageCode: null | string;
@@ -673,6 +728,7 @@ export interface components {
             displayName: null | string;
             phone: null | string;
             notes: null | string;
+            telegramUsername?: null | string;
         };
         /** @description Request body of `POST /api/v1/merchants`. */
         CreateMerchantRequest: {
@@ -704,6 +760,7 @@ export interface components {
             id: string;
             /** Format: int64 */
             telegramUserId: number | string;
+            telegramUsername: null | string;
             displayName: null | string;
             phone: null | string;
             notes: null | string;
@@ -754,6 +811,24 @@ export interface components {
             currency: string;
             isActive: boolean;
             role: string;
+            logoUrl: null | string;
+            defaultProductImageUrl: null | string;
+        };
+        /** @description Active shop profile and branding as returned by `/merchant/shop`. */
+        MerchantShopDto: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            name: string;
+            defaultLanguage: string;
+            currency: string;
+            isActive: boolean;
+            logoUrl: null | string;
+            defaultProductImageUrl: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         /** @description Full order detail including snapshotted items and status timeline. */
         OrderDetailDto: {
@@ -922,6 +997,7 @@ export interface components {
             /** Format: int32 */
             stock: number | string;
             isActive: boolean;
+            primaryImageUrl: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1017,6 +1093,8 @@ export interface components {
             name: string;
             defaultLanguage: string;
             currency: string;
+            logoUrl: null | string;
+            defaultProductImageUrl: null | string;
         };
         /** @description Request body of `POST /api/v1/auth/switch-tenant`. */
         SwitchTenantRequest: {
@@ -1069,6 +1147,10 @@ export interface components {
             slug: string;
             name: string;
             role: string;
+            defaultLanguage: string;
+            currency: string;
+            logoUrl: null | string;
+            defaultProductImageUrl: null | string;
         };
         /** @description Request body of `PATCH /merchant/categories/{id}` — every field optional. */
         UpdateCategoryRequest: {
@@ -1084,6 +1166,13 @@ export interface components {
             displayName: null | string;
             phone: null | string;
             notes: null | string;
+            telegramUsername?: null | string;
+        };
+        /** @description Request body of `PATCH /merchant/shop` — every field optional. */
+        UpdateMerchantShopRequest: {
+            name: null | string;
+            defaultLanguage: null | string;
+            currency: null | string;
         };
         /** @description Request body of `PATCH /merchant/orders/{id}/status`. */
         UpdateOrderStatusRequest: {
@@ -1328,6 +1417,205 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MerchantDto"][];
+                };
+            };
+        };
+    };
+    Merchant_Shop_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantShopDto"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Merchant_Shop_Update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMerchantShopRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantShopDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Merchant_Shop_UploadLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantShopDto"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Merchant_Shop_DeleteLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantShopDto"];
+                };
+            };
+        };
+    };
+    Merchant_Shop_UploadDefaultProductImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantShopDto"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Merchant_Shop_DeleteDefaultProductImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantShopDto"];
                 };
             };
         };

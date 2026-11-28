@@ -6,7 +6,9 @@ public sealed record StorefrontShopDto(
     string Slug,
     string Name,
     string DefaultLanguage,
-    string Currency);
+    string Currency,
+    string? LogoUrl,
+    string? DefaultProductImageUrl);
 
 /// <summary>Active category shown in the storefront.</summary>
 public sealed record StorefrontCategoryDto(

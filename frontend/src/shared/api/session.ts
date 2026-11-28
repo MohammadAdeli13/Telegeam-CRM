@@ -71,6 +71,38 @@ export function setSession(session: StoredSession): void {
   }
 }
 
+export function patchActiveTenantInSession(
+  patch: Partial<
+    Pick<
+      TenantSummary,
+      'name' | 'defaultLanguage' | 'currency' | 'logoUrl' | 'defaultProductImageUrl'
+    >
+  >,
+): StoredSession | null {
+  const current = getSession();
+  if (!current || !current.activeTenant) {
+    return current;
+  }
+
+  const updatedActive: TenantSummary = {
+    ...current.activeTenant,
+    ...patch,
+  };
+
+  const updatedTenants = current.tenants.map((tenant) =>
+    tenant.id === updatedActive.id ? { ...tenant, ...patch } : tenant,
+  );
+
+  const nextSession: StoredSession = {
+    ...current,
+    activeTenant: updatedActive,
+    tenants: updatedTenants,
+  };
+
+  setSession(nextSession);
+  return nextSession;
+}
+
 export function clearSession(): void {
   memorySession = null;
   if (typeof window === 'undefined') {

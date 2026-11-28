@@ -28,6 +28,18 @@ export function applyDocumentDirection(lang: AppLanguage): void {
   document.documentElement.dir = dir;
 }
 
+export function hasExplicitLanguagePreference(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  try {
+    const saved = window.sessionStorage.getItem(LANGUAGE_KEY);
+    return saved === 'fa' || saved === 'en';
+  } catch {
+    return false;
+  }
+}
+
 function readInitialLanguage(): AppLanguage {
   try {
     const saved = window.sessionStorage.getItem(LANGUAGE_KEY);
@@ -56,9 +68,13 @@ void i18n.use(initReactI18next).init({
 
 applyDocumentDirection(initialLanguage);
 
-export function setAppLanguage(lang: AppLanguage): void {
+export function setAppLanguage(lang: AppLanguage, options?: { explicit?: boolean }): void {
+  const explicit = options?.explicit ?? true;
   void i18n.changeLanguage(lang);
   applyDocumentDirection(lang);
+  if (!explicit) {
+    return;
+  }
   try {
     window.sessionStorage.setItem(LANGUAGE_KEY, lang);
   } catch {

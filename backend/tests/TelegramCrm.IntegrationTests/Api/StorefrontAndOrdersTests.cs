@@ -279,7 +279,7 @@ public sealed class StorefrontAndOrdersTests : IClassFixture<CrmApiFactory>
                  m.WebAppUrl is not null &&
                  m.WebAppUrl.EndsWith($"/s/{merchant.Slug}", StringComparison.Ordinal));
         Assert.Contains(sent, m => m.ChatId == 91007);
-        Assert.Contains(sent, m => m.ChatId == 92008 && m.Text.Contains("Confirmed", StringComparison.Ordinal));
+        Assert.Contains(sent, m => m.ChatId == 92008 && m.Text.Contains("تأیید شده", StringComparison.Ordinal));
     }
 
     private async Task<HttpClient> CreateCustomerClientAsync(long telegramUserId)

@@ -1,12 +1,26 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, Search, Tag, Trash2, User, X } from 'lucide-react';
+import { MessageCircle, Pencil, Plus, Search, Tag, Trash2, User, Users, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
 import { useAuth } from '@/features/auth/auth-context';
 import { apiClient, extractProblemCode, extractProblemMessage } from '@/shared/api/client';
 import { cn } from '@/shared/lib/cn';
-import { formatDate, formatMoney, toNumber } from '@/shared/lib/format';
+import {
+  buildTelegramChatUrl,
+  formatDate,
+  formatMoney,
+  isValidOptionalPhone,
+  isValidOptionalTelegramUsername,
+  normalizePhoneToE164,
+  normalizeTelegramUsername,
+  toLatinDigits,
+  toNumber,
+} from '@/shared/lib/format';
 import { normalizeLanguage } from '@/shared/lib/i18n';
+import { openTelegramUrl, triggerHaptic } from '@/shared/lib/telegram';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card } from '@/shared/ui/card';
@@ -25,7 +39,9 @@ type TagDto = components['schemas']['TagDto'];
 export function MerchantCustomersPage() {
   const { t } = useTranslation();
   const { session } = useAuth();
-  const tenantKey = session?.activeTenant?.id ?? 'none';
+  const activeShop = session?.activeTenant;
+  const tenantKey = activeShop?.id ?? 'none';
+  const currency = activeShop?.currency ?? 'IRT';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTagId, setSelectedTagId] = useState<string | undefined>(undefined);
@@ -112,17 +128,18 @@ export function MerchantCustomersPage() {
         />
       </div>
 
-      {/* Tag filter chips */}
+      {/* Horizontal scrollable tag filter chips */}
       {tags.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="no-scrollbar flex flex-nowrap gap-2 overflow-x-auto pb-1 lg:flex-wrap">
           <button
             type="button"
             onClick={() => {
+              triggerHaptic('selection');
               setSelectedTagId(undefined);
               setPage(1);
             }}
             className={cn(
-              'min-h-9 cursor-pointer rounded-full border px-3 text-xs font-medium transition-colors',
+              'min-h-11 shrink-0 cursor-pointer rounded-full border px-3.5 text-xs font-medium transition-colors',
               !selectedTagId
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-border bg-surface text-foreground hover:bg-surface-elevated',
@@ -137,11 +154,12 @@ export function MerchantCustomersPage() {
                 key={tag.id}
                 type="button"
                 onClick={() => {
+                  triggerHaptic('selection');
                   setSelectedTagId(tag.id);
                   setPage(1);
                 }}
                 className={cn(
-                  'min-h-9 cursor-pointer rounded-full border px-3 text-xs font-medium transition-colors',
+                  'min-h-11 shrink-0 cursor-pointer rounded-full border px-3.5 text-xs font-medium transition-colors',
                   active
                     ? 'border-primary bg-primary text-primary-foreground'
                     : 'border-border bg-surface text-foreground hover:bg-surface-elevated',
@@ -159,57 +177,98 @@ export function MerchantCustomersPage() {
       ) : customersQuery.isError ? (
         <ErrorState onRetry={() => void customersQuery.refetch()} />
       ) : !customersQuery.data || customersQuery.data.items.length === 0 ? (
-        <EmptyState description={t('merchant.customers.empty')} />
+        <EmptyState
+          icon={<Users className="size-6" aria-hidden="true" />}
+          title={t('merchant.customers.empty')}
+          description={t('merchant.customers.emptyHint')}
+          action={
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setFormModal({ open: true, editing: null })}
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              <span>{t('merchant.customers.newCustomer')}</span>
+            </Button>
+          }
+        />
       ) : (
         <>
           <div className="space-y-2.5">
-            {customersQuery.data.items.map((customer) => (
-              <Card key={customer.id} className="space-y-2.5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <User className="size-4 shrink-0 text-primary" aria-hidden="true" />
-                      <h2 className="truncate text-sm font-semibold text-foreground">
-                        {customer.displayName ?? t('orders.guestCustomer')}
-                      </h2>
+            {customersQuery.data.items.map((customer) => {
+              const chatUrl = buildTelegramChatUrl(
+                customer.telegramUsername,
+                customer.telegramUserId,
+              );
+              return (
+                <Card key={customer.id} className="space-y-2.5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <User className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                        <h2 className="truncate text-sm font-semibold text-foreground">
+                          {customer.displayName ?? t('orders.guestCustomer')}
+                        </h2>
+                      </div>
+                      <div
+                        className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
+                        dir="ltr"
+                      >
+                        {customer.telegramUsername ? (
+                          <span className="font-medium text-primary">
+                            @{customer.telegramUsername}
+                          </span>
+                        ) : null}
+                        {customer.phone ? (
+                          <span className="tabular-nums">{customer.phone}</span>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" dir="ltr">
-                      <span className="tabular-nums">ID: {customer.telegramUserId}</span>
-                      {customer.phone ? <span>· {customer.phone}</span> : null}
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        aria-label={t('merchant.customers.directChatCta')}
+                        onClick={() => {
+                          triggerHaptic('light');
+                          openTelegramUrl(chatUrl);
+                        }}
+                      >
+                        <MessageCircle className="size-4 text-primary" aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setFormModal({ open: true, editing: customer })}
+                      >
+                        <Pencil className="size-3.5" aria-hidden="true" />
+                        <span>{t('common.edit')}</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setDetailCustomerId(customer.id)}
+                      >
+                        {t('merchant.customers.detailsButton')}
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFormModal({ open: true, editing: customer })}
-                    >
-                      <Pencil className="size-3.5" aria-hidden="true" />
-                      <span>{t('common.edit')}</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => setDetailCustomerId(customer.id)}
-                    >
-                      {t('merchant.customers.detailsButton')}
-                    </Button>
-                  </div>
-                </div>
-
-                {customer.tags.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {customer.tags.map((tg) => (
-                      <Badge key={tg.id} variant="secondary">
-                        #{tg.name}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : null}
-              </Card>
-            ))}
+                  {customer.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {customer.tags.map((tg) => (
+                        <Badge key={tg.id} variant="secondary">
+                          #{tg.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                </Card>
+              );
+            })}
           </div>
 
           <Pagination
@@ -240,6 +299,7 @@ export function MerchantCustomersPage() {
       {detailCustomerId ? (
         <CustomerDetailModal
           tenantKey={tenantKey}
+          currency={currency}
           customerId={detailCustomerId}
           allTags={tags}
           onClose={() => setDetailCustomerId(null)}
@@ -248,6 +308,16 @@ export function MerchantCustomersPage() {
     </div>
   );
 }
+
+const customerFormSchema = z.object({
+  telegramUserId: z.string().trim(),
+  telegramUsername: z.string().trim().refine(isValidOptionalTelegramUsername),
+  displayName: z.string().trim().max(200),
+  phone: z.string().trim().refine(isValidOptionalPhone),
+  notes: z.string().max(2000),
+});
+
+type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 function CustomerFormModal({
   tenantKey,
@@ -260,37 +330,51 @@ function CustomerFormModal({
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [telegramIdError, setTelegramIdError] = useState(false);
 
-  const [telegramUserId, setTelegramUserId] = useState(
-    editing ? String(editing.telegramUserId) : '',
-  );
-  const [displayName, setDisplayName] = useState(editing?.displayName ?? '');
-  const [phone, setPhone] = useState(editing?.phone ?? '');
-  const [notes, setNotes] = useState(editing?.notes ?? '');
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues: {
+      telegramUserId: editing ? String(editing.telegramUserId) : '',
+      telegramUsername: editing?.telegramUsername ?? '',
+      displayName: editing?.displayName ?? '',
+      phone: editing?.phone ?? '',
+      notes: editing?.notes ?? '',
+    },
+  });
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (values: CustomerFormValues) => {
+      const normalizedPhone = normalizePhoneToE164(values.phone);
+      const normalizedUsername = normalizeTelegramUsername(values.telegramUsername);
+
       if (editing) {
         const { error } = await apiClient.PATCH('/api/v1/merchant/customers/{id}', {
           params: { path: { id: editing.id } },
           body: {
-            displayName: displayName.trim() || null,
-            phone: phone.trim() || null,
-            notes: notes.trim() || null,
+            displayName: values.displayName || null,
+            phone: normalizedPhone || null,
+            notes: values.notes.trim() || null,
+            telegramUsername: normalizedUsername,
           },
         });
         if (error) {
           throw error;
         }
       } else {
-        const parsedId = Number.parseInt(telegramUserId, 10);
+        const parsedId = Number.parseInt(toLatinDigits(values.telegramUserId), 10);
         const { error } = await apiClient.POST('/api/v1/merchant/customers', {
           body: {
             telegramUserId: parsedId,
-            displayName: displayName.trim() || null,
-            phone: phone.trim() || null,
-            notes: notes.trim() || null,
+            displayName: values.displayName || null,
+            phone: normalizedPhone || null,
+            notes: values.notes.trim() || null,
+            telegramUsername: normalizedUsername || null,
           },
         });
         if (error) {
@@ -299,6 +383,7 @@ function CustomerFormModal({
       }
     },
     onSuccess: () => {
+      triggerHaptic('success');
       void queryClient.invalidateQueries({ queryKey: ['merchant', tenantKey, 'customers'] });
       void queryClient.invalidateQueries({ queryKey: ['merchant', tenantKey, 'kpi-customers'] });
       if (editing) {
@@ -309,8 +394,9 @@ function CustomerFormModal({
       onClose();
     },
     onError: (err) => {
+      triggerHaptic('error');
       const code = extractProblemCode(err);
-      setErrorMsg(
+      setServerError(
         code === 'customer_exists'
           ? t('merchant.customers.customerExists')
           : extractProblemMessage(err, t('app.errorGeneric')),
@@ -318,17 +404,20 @@ function CustomerFormModal({
     },
   });
 
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    setErrorMsg(null);
+  const onValidSubmit = (values: CustomerFormValues) => {
+    setServerError(null);
+    setTelegramIdError(false);
+
     if (!editing) {
-      const parsedId = Number.parseInt(telegramUserId, 10);
-      if (Number.isNaN(parsedId) || parsedId <= 0) {
-        setErrorMsg(t('merchant.customers.telegramIdLabel'));
+      const cleanId = toLatinDigits(values.telegramUserId);
+      const parsedId = Number.parseInt(cleanId, 10);
+      if (!/^\d+$/.test(cleanId) || Number.isNaN(parsedId) || parsedId <= 0) {
+        setTelegramIdError(true);
         return;
       }
     }
-    mutation.mutate();
+
+    mutation.mutate(values);
   };
 
   return (
@@ -337,29 +426,50 @@ function CustomerFormModal({
       title={editing ? t('merchant.customers.editCustomer') : t('merchant.customers.newCustomer')}
       onClose={onClose}
     >
-      <form onSubmit={handleSubmit} className="space-y-3.5">
+      <form
+        onSubmit={(e) => void handleSubmit(onValidSubmit)(e)}
+        className="space-y-3.5"
+        noValidate
+      >
         {!editing ? (
           <div className="space-y-1.5">
             <Label htmlFor="cust-tg-id">{t('merchant.customers.telegramIdLabel')}</Label>
             <Input
               id="cust-tg-id"
               dir="ltr"
-              type="number"
-              min={1}
-              required
-              value={telegramUserId}
-              onChange={(e) => setTelegramUserId(e.target.value)}
+              inputMode="numeric"
+              aria-invalid={telegramIdError}
+              {...register('telegramUserId')}
             />
+            <p
+              className={
+                telegramIdError ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'
+              }
+            >
+              {telegramIdError
+                ? t('merchant.customers.validationTelegramId')
+                : t('merchant.customers.telegramIdHelper')}
+            </p>
           </div>
         ) : null}
 
         <div className="space-y-1.5">
           <Label htmlFor="cust-name">{t('merchant.customers.displayNameLabel')}</Label>
+          <Input id="cust-name" {...register('displayName')} />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="cust-username">{t('merchant.customers.telegramUsernameLabel')}</Label>
           <Input
-            id="cust-name"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
+            id="cust-username"
+            dir="ltr"
+            placeholder={t('merchant.customers.telegramUsernamePlaceholder')}
+            aria-invalid={Boolean(errors.telegramUsername)}
+            {...register('telegramUsername')}
           />
+          {errors.telegramUsername ? (
+            <p className="text-xs text-destructive">{t('merchant.customers.validationUsername')}</p>
+          ) : null}
         </div>
 
         <div className="space-y-1.5">
@@ -368,33 +478,44 @@ function CustomerFormModal({
             id="cust-phone"
             dir="ltr"
             type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            inputMode="tel"
             placeholder={t('merchant.customers.phonePlaceholder')}
+            aria-invalid={Boolean(errors.phone)}
+            {...register('phone')}
           />
+          {errors.phone ? (
+            <p className="text-xs text-destructive">{t('merchant.customers.validationPhone')}</p>
+          ) : null}
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="cust-notes">{t('merchant.customers.notesLabel')}</Label>
           <Textarea
             id="cust-notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
             placeholder={t('merchant.customers.notesPlaceholder')}
+            {...register('notes')}
           />
         </div>
 
-        {errorMsg ? (
-          <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            {errorMsg}
+        {serverError ? (
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+          >
+            {serverError}
           </p>
         ) : null}
 
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="w-full sm:w-auto"
+          >
             {t('common.cancel')}
           </Button>
-          <Button type="submit" disabled={mutation.isPending}>
+          <Button type="submit" disabled={mutation.isPending} className="w-full sm:w-auto">
             {mutation.isPending ? t('common.saving') : t('common.save')}
           </Button>
         </div>
@@ -427,11 +548,13 @@ function ManageTagsModal({
       }
     },
     onSuccess: () => {
+      triggerHaptic('success');
       setName('');
       setErrorMsg(null);
       void queryClient.invalidateQueries({ queryKey: ['merchant', tenantKey, 'tags'] });
     },
     onError: (err) => {
+      triggerHaptic('error');
       const code = extractProblemCode(err);
       setErrorMsg(
         code === 'tag_exists'
@@ -451,6 +574,7 @@ function ManageTagsModal({
       }
     },
     onSuccess: () => {
+      triggerHaptic('success');
       void queryClient.invalidateQueries({ queryKey: ['merchant', tenantKey, 'tags'] });
       void queryClient.invalidateQueries({ queryKey: ['merchant', tenantKey, 'customers'] });
     },
@@ -486,11 +610,11 @@ function ManageTagsModal({
         ) : null}
 
         {tags.length === 0 ? (
-          <EmptyState description={t('merchant.customers.emptyTags')} />
+          <EmptyState embedded description={t('merchant.customers.emptyTags')} />
         ) : (
           <div className="divide-y divide-border rounded-lg border border-border bg-background">
             {tags.map((tag) => (
-              <div key={tag.id} className="flex items-center justify-between gap-2 px-3 py-2">
+              <div key={tag.id} className="flex items-center justify-between gap-2 px-3 py-1.5">
                 <span className="text-sm font-medium text-foreground">#{tag.name}</span>
                 <Button
                   type="button"
@@ -499,7 +623,7 @@ function ManageTagsModal({
                   aria-label={t('common.delete')}
                   disabled={deleteMutation.isPending}
                   onClick={() => deleteMutation.mutate(tag.id)}
-                  className="size-9 text-destructive hover:bg-destructive/10"
+                  className="text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="size-4" aria-hidden="true" />
                 </Button>
@@ -514,11 +638,13 @@ function ManageTagsModal({
 
 function CustomerDetailModal({
   tenantKey,
+  currency,
   customerId,
   allTags,
   onClose,
 }: {
   tenantKey: string;
+  currency: string;
   customerId: string;
   allTags: TagDto[];
   onClose: () => void;
@@ -564,6 +690,7 @@ function CustomerDetailModal({
       }
     },
     onSuccess: () => {
+      triggerHaptic('selection');
       void queryClient.invalidateQueries({
         queryKey: ['merchant', tenantKey, 'customer-detail', customerId],
       });
@@ -581,6 +708,7 @@ function CustomerDetailModal({
       }
     },
     onSuccess: () => {
+      triggerHaptic('selection');
       void queryClient.invalidateQueries({
         queryKey: ['merchant', tenantKey, 'customer-detail', customerId],
       });
@@ -590,6 +718,9 @@ function CustomerDetailModal({
 
   const customer = customerQuery.data;
   const attachedIds = new Set(customer?.tags.map((tg) => tg.id) ?? []);
+  const chatUrl = customer
+    ? buildTelegramChatUrl(customer.telegramUsername, customer.telegramUserId)
+    : null;
 
   return (
     <ModalDialog
@@ -603,19 +734,40 @@ function CustomerDetailModal({
         <ErrorState onRetry={() => void customerQuery.refetch()} />
       ) : (
         <div className="space-y-4">
-          <div className="space-y-1 rounded-lg border border-border bg-background p-3 text-xs">
-            <p className="tabular-nums text-muted-foreground" dir="ltr">
-              Telegram ID: {customer.telegramUserId}
-            </p>
+          <div className="space-y-2 rounded-lg border border-border bg-background p-3 text-xs">
+            {customer.telegramUsername ? (
+              <p className="font-semibold text-primary" dir="ltr">
+                @{customer.telegramUsername}
+              </p>
+            ) : null}
             {customer.phone ? (
               <p className="tabular-nums text-foreground" dir="ltr">
                 {customer.phone}
               </p>
             ) : null}
+            <p className="tabular-nums text-muted-foreground">
+              {t('merchant.customers.telegramIdShort')}:{' '}
+              <span dir="ltr">{customer.telegramUserId}</span>
+            </p>
             {customer.notes ? (
-              <p className="pt-1 text-sm text-foreground">{customer.notes}</p>
+              <p className="border-t border-border pt-2 text-sm text-foreground">{customer.notes}</p>
             ) : null}
           </div>
+
+          {/* Direct Telegram Chat CTA */}
+          {chatUrl ? (
+            <Button
+              type="button"
+              className="w-full"
+              onClick={() => {
+                triggerHaptic('light');
+                openTelegramUrl(chatUrl);
+              }}
+            >
+              <MessageCircle className="size-4" aria-hidden="true" />
+              <span>{t('merchant.customers.directChatCta')}</span>
+            </Button>
+          ) : null}
 
           {/* Toggle tags */}
           <div className="space-y-2">
@@ -641,14 +793,14 @@ function CustomerDetailModal({
                         }
                       }}
                       className={cn(
-                        'inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors',
+                        'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-xs font-medium transition-colors',
                         attached
                           ? 'border-primary bg-primary text-primary-foreground'
                           : 'border-border bg-surface text-foreground hover:bg-surface-elevated',
                       )}
                     >
                       <span>#{tag.name}</span>
-                      {attached ? <X className="size-3" aria-hidden="true" /> : null}
+                      {attached ? <X className="size-3.5" aria-hidden="true" /> : null}
                     </button>
                   );
                 })}
@@ -664,7 +816,7 @@ function CustomerDetailModal({
             {ordersQuery.isLoading ? (
               <LoadingState rows={2} />
             ) : !ordersQuery.data || ordersQuery.data.length === 0 ? (
-              <EmptyState description={t('merchant.customers.noOrders')} />
+              <EmptyState embedded description={t('merchant.customers.noOrders')} />
             ) : (
               <div className="divide-y divide-border rounded-lg border border-border bg-background">
                 {ordersQuery.data.map((ord) => (
@@ -672,14 +824,14 @@ function CustomerDetailModal({
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="tabular-nums font-semibold text-foreground" dir="ltr">
-                          #{ord.id.slice(0, 8)}
+                          #{ord.id.slice(0, 8).toUpperCase()}
                         </span>
                         <OrderStatusBadge status={ord.status} />
                       </div>
                       <p className="text-muted-foreground">{formatDate(ord.placedAt, lang)}</p>
                     </div>
                     <span className="tabular-nums text-sm font-bold text-primary">
-                      {formatMoney(ord.totalAmount, 'IRR', lang)}
+                      {formatMoney(ord.totalAmount, currency, lang)}
                     </span>
                   </div>
                 ))}

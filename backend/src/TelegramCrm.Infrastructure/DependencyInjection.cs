@@ -56,13 +56,15 @@ public static class DependencyInjection
         services.AddScoped<MerchantService>();
         services.AddScoped<CreateMerchantRequestValidator>();
 
-        // Merchant back-office (P2a).
+        // Merchant back-office.
+        services.AddScoped<MerchantShopService>();
         services.AddScoped<CategoryService>();
         services.AddScoped<ProductService>();
         services.AddScoped<ProductImageService>();
         services.AddScoped<CustomerService>();
         services.AddScoped<ShopSettingService>();
 
+        services.AddScoped<UpdateMerchantShopRequestValidator>();
         services.AddScoped<CreateCategoryRequestValidator>();
         services.AddScoped<UpdateCategoryRequestValidator>();
         services.AddScoped<CreateProductRequestValidator>();
@@ -75,7 +77,7 @@ public static class DependencyInjection
         services.AddScoped<AttachTagRequestValidator>();
         services.AddScoped<UpdateSettingsRequestValidator>();
 
-        // Orders, Storefront & Telegram Bot (P2b).
+        // Orders, Storefront & Telegram Bot.
         services.AddScoped<OrderService>();
         services.AddScoped<StorefrontService>();
         services.AddScoped<TelegramWebhookService>();

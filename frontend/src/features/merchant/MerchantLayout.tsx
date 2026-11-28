@@ -1,4 +1,5 @@
 import {
+  ChevronDown,
   ExternalLink,
   LayoutDashboard,
   Package,
@@ -8,7 +9,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link, Navigate, NavLink, Outlet } from 'react-router';
+import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '@/features/auth/auth-context';
 import { cn } from '@/shared/lib/cn';
 import { Button } from '@/shared/ui/button';
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
 
 export function MerchantLayout() {
   const { t } = useTranslation();
+  const location = useLocation();
   const { status, session } = useAuth();
 
   if (status === 'unauthenticated' || status === 'reopen_required') {
@@ -35,6 +37,10 @@ export function MerchantLayout() {
   }
 
   const activeShop = session?.activeTenant;
+  const activeNav =
+    NAV_ITEMS.find((item) =>
+      item.end ? location.pathname === item.to : location.pathname.startsWith(item.to),
+    ) ?? NAV_ITEMS[0];
 
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground lg:flex-row">
@@ -46,22 +52,36 @@ export function MerchantLayout() {
       </a>
 
       {/* Desktop persistent sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-e border-border bg-surface p-4 lg:flex">
-        <div className="mb-6 flex items-center gap-2.5">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <Store className="size-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-foreground">
-              {activeShop?.name ?? t('app.name')}
-            </p>
-            {activeShop ? (
-              <p className="truncate text-xs text-muted-foreground" dir="ltr">
-                /{activeShop.slug}
+      <aside className="hidden w-64 shrink-0 flex-col border-e border-border bg-surface p-4 lg:flex">
+        <Link
+          to="/auth"
+          className="mb-6 flex items-center justify-between gap-2 rounded-xl border border-transparent p-1.5 transition-colors hover:border-border hover:bg-surface-elevated"
+        >
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/15 text-primary">
+              {activeShop?.logoUrl ? (
+                <img
+                  src={activeShop.logoUrl}
+                  alt={activeShop.name}
+                  className="size-full object-cover"
+                />
+              ) : (
+                <Store className="size-5" aria-hidden="true" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-foreground">
+                {activeShop?.name ?? t('app.name')}
               </p>
-            ) : null}
+              {activeShop ? (
+                <p className="truncate text-xs text-muted-foreground" dir="ltr">
+                  {activeShop.slug}
+                </p>
+              ) : null}
+            </div>
           </div>
-        </div>
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        </Link>
 
         <nav aria-label="Merchant navigation" className="flex flex-1 flex-col gap-1">
           {NAV_ITEMS.map(({ to, end, key, icon: Icon }) => (
@@ -96,38 +116,63 @@ export function MerchantLayout() {
 
       {/* Main area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-border bg-surface/95 px-4 py-2.5 backdrop-blur-sm">
-          <div className="flex min-w-0 items-center gap-2 lg:hidden">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-              <Store className="size-4" aria-hidden="true" />
+        <header className="safe-top sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-border bg-surface/95 px-4 py-2.5 backdrop-blur-sm">
+          {/* Mobile shop switcher button */}
+          <Link
+            to="/auth"
+            aria-label={t('merchant.switchShop')}
+            className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg pe-2 transition-colors hover:bg-surface-elevated lg:hidden"
+          >
+            <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/15 text-primary">
+              {activeShop?.logoUrl ? (
+                <img
+                  src={activeShop.logoUrl}
+                  alt={activeShop.name}
+                  className="size-full object-cover"
+                />
+              ) : (
+                <Store className="size-4" aria-hidden="true" />
+              )}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">
-                {activeShop?.name ?? t('app.name')}
-              </p>
-              {activeShop ? (
-                <p className="truncate text-xs text-muted-foreground" dir="ltr">
-                  /{activeShop.slug}
+              <div className="flex items-center gap-1">
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {activeShop?.name ?? t('app.name')}
                 </p>
-              ) : null}
+                <ChevronDown
+                  className="size-3.5 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              </div>
+              <p className="truncate text-[11px] text-muted-foreground">{t(activeNav.key)}</p>
             </div>
-          </div>
+          </Link>
 
-          <div className="hidden lg:block">
+          {/* Desktop current section heading & shop switcher */}
+          <div className="hidden items-center gap-3 lg:flex">
+            <span className="text-sm font-semibold text-foreground">{t(activeNav.key)}</span>
+            <span className="text-border" aria-hidden="true">
+              |
+            </span>
             <Button asChild variant="ghost" size="sm">
               <Link to="/auth">{t('merchant.switchShop')}</Link>
             </Button>
           </div>
 
-          <ToolbarControls />
+          <div className="shrink-0">
+            <ToolbarControls />
+          </div>
         </header>
 
-        <main id="main-content" className="mx-auto w-full max-w-5xl flex-1 px-4 pt-4 pb-24 lg:pb-8">
+        <main
+          id="main-content"
+          className="mx-auto w-full max-w-5xl flex-1 px-4 pt-4 pb-28 lg:pb-10"
+        >
           <Outlet />
         </main>
       </div>
 
-      {/* Mobile bottom tab bar (5 destinations) */}
+      {/* Mobile bottom tab bar */}
       <nav
         aria-label="Merchant mobile navigation"
         className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur-sm lg:hidden"

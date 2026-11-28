@@ -64,7 +64,8 @@ app.MapHealthEndpoints();
 app.MapAuthEndpoints();
 app.MapMerchantEndpoints();
 
-// Merchant back-office (P2a + P2b) — every group requires the `Merchant` policy.
+// Merchant back-office — every group requires the `Merchant` policy.
+app.MapMerchantShopEndpoints();
 app.MapCategoryEndpoints();
 app.MapProductEndpoints();
 app.MapProductImageEndpoints();
@@ -73,7 +74,7 @@ app.MapTagEndpoints();
 app.MapSettingsEndpoints();
 app.MapMerchantOrderEndpoints();
 
-// Storefront & Telegram Bot webhook (P2b).
+// Storefront & Telegram Bot webhook.
 app.MapStorefrontEndpoints();
 app.MapTelegramWebhookEndpoints();
 

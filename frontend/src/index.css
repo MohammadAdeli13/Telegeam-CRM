@@ -96,8 +96,21 @@
   font-variant-numeric: tabular-nums;
 }
 
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
 .safe-bottom {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

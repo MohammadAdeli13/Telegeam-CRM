@@ -15,4 +15,6 @@ public sealed record MerchantDto(
     string DefaultLanguage,
     string Currency,
     bool IsActive,
-    string Role);
+    string Role,
+    string? LogoUrl,
+    string? DefaultProductImageUrl);

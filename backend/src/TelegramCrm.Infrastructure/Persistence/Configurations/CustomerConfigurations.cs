@@ -12,6 +12,7 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         EntityMapping.MapTenant(builder);
 
         builder.Property(e => e.TelegramUserId).IsRequired();
+        builder.Property(e => e.TelegramUsername).HasMaxLength(64);
         builder.Property(e => e.DisplayName).HasMaxLength(200);
         builder.Property(e => e.Phone).HasMaxLength(20);
         builder.Property(e => e.Notes).HasMaxLength(2000);
