@@ -111,6 +111,84 @@ namespace TelegramCrm.Infrastructure.Persistence.Migrations
                     b.ToTable("Customers", (string)null);
                 });
 
+            modelBuilder.Entity("TelegramCrm.Domain.Entities.CustomerAddress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AddressLine")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDefault")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Plaque")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("RecipientName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CustomerAddresses_Default")
+                        .HasFilter("\"IsDefault\"");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "CustomerId");
+
+                    b.ToTable("CustomerAddresses", (string)null);
+                });
+
             modelBuilder.Entity("TelegramCrm.Domain.Entities.CustomerTag", b =>
                 {
                     b.Property<Guid>("CustomerId")
@@ -136,18 +214,74 @@ namespace TelegramCrm.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CarrierName")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("CustomerId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("IsShippingPayAtDestination")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Note")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<int>("OrderNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTimeOffset?>("PaymentExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasDefaultValue("None");
+
+                    b.Property<string>("PaymentRejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasDefaultValue("NotRequired");
+
+                    b.Property<DateTimeOffset?>("PaymentVerifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PaymentVerifiedByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("PlacedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReceiptStoragePath")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset?>("ReceiptSubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RecipientName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("RecipientPhone")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<uint>("RowVersion")
                         .IsConcurrencyToken()
@@ -155,10 +289,48 @@ namespace TelegramCrm.Infrastructure.Persistence.Migrations
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
 
+                    b.Property<DateTimeOffset?>("ShippedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ShippingAddressSnapshot")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal>("ShippingAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("ShippingCity")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<Guid?>("ShippingMethodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ShippingMethodNameSnapshot")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("ShippingPostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("ShippingProvince")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<decimal>("SubtotalAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -167,6 +339,10 @@ namespace TelegramCrm.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<string>("TrackingCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -174,13 +350,32 @@ namespace TelegramCrm.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CustomerId");
 
+                    b.HasIndex("PaymentExpiresAt")
+                        .HasDatabaseName("IX_Orders_PaymentExpiresAt_Pending")
+                        .HasFilter("\"PaymentExpiresAt\" IS NOT NULL AND \"Status\" = 'Pending'");
+
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "OrderNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Orders_TenantId_OrderNumber")
+                        .HasFilter("\"OrderNumber\" > 0");
+
+                    b.HasIndex("TenantId", "ShippingCity");
 
                     b.HasIndex("TenantId", "Status", "PlacedAt");
 
                     b.ToTable("Orders", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Orders_PaymentMethod", "\"PaymentMethod\" IN ('None','PayOnDelivery','CardToCard')");
+
+                            t.HasCheckConstraint("CK_Orders_PaymentStatus", "\"PaymentStatus\" IN ('NotRequired','AwaitingReceipt','ReceiptSubmitted','Verified','Rejected')");
+
+                            t.HasCheckConstraint("CK_Orders_ShippingAmount", "\"ShippingAmount\" >= 0");
+
                             t.HasCheckConstraint("CK_Orders_Status", "\"Status\" IN ('Pending','Confirmed','Preparing','Shipped','Delivered','Cancelled')");
+
+                            t.HasCheckConstraint("CK_Orders_SubtotalAmount", "\"SubtotalAmount\" >= 0");
 
                             t.HasCheckConstraint("CK_Orders_TotalAmount", "\"TotalAmount\" >= 0");
                         });
@@ -438,6 +633,70 @@ namespace TelegramCrm.Infrastructure.Persistence.Migrations
                     b.ToTable("ProductImages", (string)null);
                 });
 
+            modelBuilder.Entity("TelegramCrm.Domain.Entities.ShippingMethod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("EstimatedDaysText")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<decimal?>("FreeAboveAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsPayAtDestination")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "IsActive", "SortOrder");
+
+                    b.ToTable("ShippingMethods", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ShippingMethods_FreeAboveAmount", "\"FreeAboveAmount\" IS NULL OR \"FreeAboveAmount\" >= 0");
+
+                            t.HasCheckConstraint("CK_ShippingMethods_Price", "\"Price\" >= 0");
+                        });
+                });
+
             modelBuilder.Entity("TelegramCrm.Domain.Entities.ShopSetting", b =>
                 {
                     b.Property<Guid>("Id")
@@ -505,6 +764,18 @@ namespace TelegramCrm.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("BankName")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("CardHolderName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("CardNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -522,6 +793,16 @@ namespace TelegramCrm.Infrastructure.Persistence.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<bool>("EnableCardToCard")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("EnablePayOnDelivery")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -533,6 +814,21 @@ namespace TelegramCrm.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
+
+                    b.Property<int>("NextOrderNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1001);
+
+                    b.Property<int>("PaymentExpiryMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(60);
+
+                    b.Property<bool>("RequireOrderApproval")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Slug")
                         .IsRequired()
@@ -549,6 +845,8 @@ namespace TelegramCrm.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Tenants", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Tenants_PaymentExpiryMinutes", "\"PaymentExpiryMinutes\" >= 5 AND \"PaymentExpiryMinutes\" <= 10080");
+
                             t.HasCheckConstraint("CK_Tenants_Slug", "\"Slug\" ~ '^[a-z0-9-]{3,40}$'");
                         });
                 });
@@ -623,6 +921,17 @@ namespace TelegramCrm.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("TelegramCrm.Domain.Entities.CustomerAddress", b =>
+                {
+                    b.HasOne("TelegramCrm.Domain.Entities.Customer", "Customer")
+                        .WithMany("Addresses")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("TelegramCrm.Domain.Entities.CustomerTag", b =>
@@ -725,6 +1034,8 @@ namespace TelegramCrm.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("TelegramCrm.Domain.Entities.Customer", b =>
                 {
+                    b.Navigation("Addresses");
+
                     b.Navigation("Orders");
 
                     b.Navigation("Tags");

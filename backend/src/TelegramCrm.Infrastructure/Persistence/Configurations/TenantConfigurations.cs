@@ -17,9 +17,21 @@ public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(e => e.IsActive).IsRequired();
         builder.Property(e => e.LogoStoragePath).HasMaxLength(512);
         builder.Property(e => e.DefaultProductImageStoragePath).HasMaxLength(512);
+        builder.Property(e => e.RequireOrderApproval).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.NextOrderNumber).IsRequired().HasDefaultValue(1001);
+        builder.Property(e => e.PaymentExpiryMinutes).IsRequired().HasDefaultValue(60);
+        builder.Property(e => e.EnableCardToCard).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.EnablePayOnDelivery).IsRequired().HasDefaultValue(true);
+        builder.Property(e => e.CardNumber).HasMaxLength(32);
+        builder.Property(e => e.CardHolderName).HasMaxLength(120);
+        builder.Property(e => e.BankName).HasMaxLength(80);
 
         builder.HasIndex(e => e.Slug).IsUnique();
-        builder.ToTable(t => t.HasCheckConstraint("CK_Tenants_Slug", "\"Slug\" ~ '^[a-z0-9-]{3,40}$'"));
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Tenants_Slug", "\"Slug\" ~ '^[a-z0-9-]{3,40}$'");
+            t.HasCheckConstraint("CK_Tenants_PaymentExpiryMinutes", "\"PaymentExpiryMinutes\" >= 5 AND \"PaymentExpiryMinutes\" <= 10080");
+        });
     }
 }
 

@@ -24,9 +24,56 @@ public class Order : Entity, ITenantOwned
 
     public Guid CustomerId { get; set; }
 
+    /// <summary>Human-friendly sequential order number unique within the tenant (e.g. 1001).</summary>
+    public int OrderNumber { get; set; }
+
     public OrderStatus Status { get; private set; } = OrderStatus.Pending;
 
+    public decimal SubtotalAmount { get; set; }
+
+    public decimal ShippingAmount { get; set; }
+
     public decimal TotalAmount { get; set; }
+
+    public Guid? ShippingMethodId { get; set; }
+
+    public string? ShippingMethodNameSnapshot { get; set; }
+
+    public bool IsShippingPayAtDestination { get; set; }
+
+    public string? RecipientName { get; set; }
+
+    public string? RecipientPhone { get; set; }
+
+    public string? ShippingProvince { get; set; }
+
+    public string? ShippingCity { get; set; }
+
+    public string? ShippingAddressSnapshot { get; set; }
+
+    public string? ShippingPostalCode { get; set; }
+
+    public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.None;
+
+    public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.NotRequired;
+
+    public string? ReceiptStoragePath { get; set; }
+
+    public DateTimeOffset? ReceiptSubmittedAt { get; set; }
+
+    public DateTimeOffset? PaymentVerifiedAt { get; set; }
+
+    public Guid? PaymentVerifiedByUserId { get; set; }
+
+    public string? PaymentRejectionReason { get; set; }
+
+    public DateTimeOffset? PaymentExpiresAt { get; set; }
+
+    public string? CarrierName { get; set; }
+
+    public string? TrackingCode { get; set; }
+
+    public DateTimeOffset? ShippedAt { get; set; }
 
     public string? Note { get; set; }
 

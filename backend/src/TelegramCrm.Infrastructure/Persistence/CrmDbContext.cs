@@ -33,6 +33,10 @@ public class CrmDbContext : DbContext, IAppDbContext
 
     public DbSet<Customer> Customers => Set<Customer>();
 
+    public DbSet<CustomerAddress> CustomerAddresses => Set<CustomerAddress>();
+
+    public DbSet<ShippingMethod> ShippingMethods => Set<ShippingMethod>();
+
     public DbSet<Tag> Tags => Set<Tag>();
 
     public DbSet<CustomerTag> CustomerTags => Set<CustomerTag>();

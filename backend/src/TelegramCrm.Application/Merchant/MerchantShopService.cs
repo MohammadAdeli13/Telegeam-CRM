@@ -7,9 +7,8 @@ using TelegramCrm.Domain.Exceptions;
 namespace TelegramCrm.Application.Merchant;
 
 /// <summary>
-/// Manages the active merchant shop's profile (name, language, currency) and branding
-/// assets (shop logo and default product placeholder image). Strictly scoped to
-/// <see cref="MerchantServiceBase.TenantId"/> derived from the verified JWT claim.
+/// Manages the active merchant shop's profile, branding assets, order approval mode, and
+/// payment configuration. Strictly scoped to <see cref="MerchantServiceBase.TenantId"/>.
 /// </summary>
 public sealed class MerchantShopService : MerchantServiceBase
 {
@@ -50,6 +49,51 @@ public sealed class MerchantShopService : MerchantServiceBase
         if (request.Currency is not null)
         {
             tenant.Currency = request.Currency;
+        }
+
+        if (request.RequireOrderApproval.HasValue)
+        {
+            tenant.RequireOrderApproval = request.RequireOrderApproval.Value;
+        }
+
+        if (request.PaymentExpiryMinutes.HasValue)
+        {
+            tenant.PaymentExpiryMinutes = request.PaymentExpiryMinutes.Value;
+        }
+
+        if (request.EnableCardToCard.HasValue)
+        {
+            tenant.EnableCardToCard = request.EnableCardToCard.Value;
+        }
+
+        if (request.EnablePayOnDelivery.HasValue)
+        {
+            tenant.EnablePayOnDelivery = request.EnablePayOnDelivery.Value;
+        }
+
+        if (request.CardNumber is not null)
+        {
+            var cleaned = request.CardNumber.Trim();
+            tenant.CardNumber = string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
+        }
+
+        if (request.CardHolderName is not null)
+        {
+            var cleaned = request.CardHolderName.Trim();
+            tenant.CardHolderName = string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
+        }
+
+        if (request.BankName is not null)
+        {
+            var cleaned = request.BankName.Trim();
+            tenant.BankName = string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
+        }
+
+        if (tenant.EnableCardToCard && string.IsNullOrWhiteSpace(tenant.CardNumber))
+        {
+            throw new DomainException(
+                "card_number_required",
+                "A bank card number is required when card-to-card payment is enabled.");
         }
 
         tenant.UpdatedAt = Clock.UtcNow;
@@ -117,7 +161,6 @@ public sealed class MerchantShopService : MerchantServiceBase
         var safeName = $"{assetPrefix}{extension}";
         var tenantId = TenantId;
 
-        // Fresh Guid per upload guarantees a cache-busted public URL under Nginx /files/*.
         var newPath = await _storage
             .SaveAsync(tenantId, "branding", Guid.NewGuid(), safeName, buffer, cancellationToken)
             .ConfigureAwait(false);
@@ -187,6 +230,13 @@ public sealed class MerchantShopService : MerchantServiceBase
             string.IsNullOrWhiteSpace(t.DefaultProductImageStoragePath)
                 ? null
                 : _storage.GetPublicUrl(t.DefaultProductImageStoragePath),
+            t.RequireOrderApproval,
+            t.PaymentExpiryMinutes,
+            t.EnableCardToCard,
+            t.EnablePayOnDelivery,
+            t.CardNumber,
+            t.CardHolderName,
+            t.BankName,
             t.CreatedAt,
             t.UpdatedAt);
 }

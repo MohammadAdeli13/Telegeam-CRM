@@ -25,6 +25,10 @@ public interface IAppDbContext
 
     DbSet<Customer> Customers { get; }
 
+    DbSet<CustomerAddress> CustomerAddresses { get; }
+
+    DbSet<ShippingMethod> ShippingMethods { get; }
+
     DbSet<Tag> Tags { get; }
 
     DbSet<CustomerTag> CustomerTags { get; }

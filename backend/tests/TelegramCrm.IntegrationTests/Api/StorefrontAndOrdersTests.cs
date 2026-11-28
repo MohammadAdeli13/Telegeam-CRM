@@ -10,7 +10,7 @@ using TelegramCrm.IntegrationTests.Support;
 namespace TelegramCrm.IntegrationTests.Api;
 
 /// <summary>
-/// End-to-end tests for P2b: storefront reads, cart validation, idempotent order placement,
+/// End-to-end tests for storefront reads, cart validation, idempotent order placement,
 /// concurrent stock oversell prevention, merchant/customer order lifecycle and stock restore,
 /// cross-tenant order isolation, Telegram webhook secret check, and OutboxProcessor delivery.
 /// </summary>
@@ -84,15 +84,16 @@ public sealed class StorefrontAndOrdersTests : IClassFixture<CrmApiFactory>
             new { items = new[] { new { productId, quantity = 2 } } });
         Assert.Equal(HttpStatusCode.BadRequest, missingKey.StatusCode);
 
-        // First call -> 201 Created, stock drops 10 -> 8.
+        // Default RequireOrderApproval=false -> auto-confirms on placement, stock drops 10 -> 8.
         var key = $"idem-{Guid.NewGuid():N}";
         using var req1 = CreateOrderRequest(merchant.Slug, key, productId, quantity: 2);
         var resp1 = await customer.SendAsync(req1);
         Assert.Equal(HttpStatusCode.Created, resp1.StatusCode);
         var order1 = await resp1.Content.ReadFromJsonAsync<OrderDetailDto>(_json);
-        Assert.Equal("Pending", order1!.Status);
+        Assert.Equal("Confirmed", order1!.Status);
+        Assert.Equal(1001, order1.OrderNumber);
         Assert.Equal(10.00m, order1.TotalAmount);
-        Assert.Single(order1.StatusHistory);
+        Assert.Equal(2, order1.StatusHistory.Count);
 
         // Replay with exact same Idempotency-Key -> 200 OK, same Id, stock stays 8.
         using var req2 = CreateOrderRequest(merchant.Slug, key, productId, quantity: 2);
@@ -129,9 +130,14 @@ public sealed class StorefrontAndOrdersTests : IClassFixture<CrmApiFactory>
     }
 
     [PostgresFact]
-    public async Task Orders_CustomerCancelPending_RestoresStock_AndCannotCancelConfirmed()
+    public async Task Orders_CustomerCancelPending_RestoresStock_AndCannotCancelMerchantConfirmed()
     {
         var merchant = await MerchantTestClient.CreateAsync(_factory, 91004);
+        var enableApproval = await merchant.Client.PatchAsJsonAsync(
+            new Uri("/api/v1/merchant/shop", UriKind.Relative),
+            new { requireOrderApproval = true });
+        enableApproval.EnsureSuccessStatusCode();
+
         var productId = await CreateProductAsync(merchant, "Backpack", price: 30m, stock: 5);
         using var customer = await CreateCustomerClientAsync(92005);
 
@@ -140,10 +146,11 @@ public sealed class StorefrontAndOrdersTests : IClassFixture<CrmApiFactory>
         var placed1 = await customer.SendAsync(req1);
         Assert.Equal(HttpStatusCode.Created, placed1.StatusCode);
         var order1 = await placed1.Content.ReadFromJsonAsync<OrderDetailDto>(_json);
+        Assert.Equal("Pending", order1!.Status);
         Assert.Equal(3, await GetMerchantProductStockAsync(merchant, productId));
 
         var cancelResp = await customer.PostAsJsonAsync(
-            new Uri($"/api/v1/storefront/{merchant.Slug}/orders/{order1!.Id}/cancel", UriKind.Relative),
+            new Uri($"/api/v1/storefront/{merchant.Slug}/orders/{order1.Id}/cancel", UriKind.Relative),
             new { reason = "Changed mind" });
         Assert.Equal(HttpStatusCode.OK, cancelResp.StatusCode);
         var cancelled = await cancelResp.Content.ReadFromJsonAsync<OrderDetailDto>(_json);
@@ -201,7 +208,7 @@ public sealed class StorefrontAndOrdersTests : IClassFixture<CrmApiFactory>
 
         var patchByMerchantA = await merchantA.Client.PatchAsJsonAsync(
             new Uri($"/api/v1/merchant/orders/{orderB.Id}/status", UriKind.Relative),
-            new { status = "Confirmed" });
+            new { status = "Preparing" });
         Assert.Equal(HttpStatusCode.NotFound, patchByMerchantA.StatusCode);
 
         // Customer 2 cannot read Customer 1's order -> 404.
@@ -215,6 +222,11 @@ public sealed class StorefrontAndOrdersTests : IClassFixture<CrmApiFactory>
     {
         _factory.TelegramSender.Clear();
         var merchant = await MerchantTestClient.CreateAsync(_factory, 91007);
+        var enableApproval = await merchant.Client.PatchAsJsonAsync(
+            new Uri("/api/v1/merchant/shop", UriKind.Relative),
+            new { requireOrderApproval = true });
+        enableApproval.EnsureSuccessStatusCode();
+
         var productId = await CreateProductAsync(merchant, "Tea Box", price: 15m, stock: 5);
         using var customer = await CreateCustomerClientAsync(92008);
         using var client = _factory.CreateClient();
@@ -361,6 +373,7 @@ public sealed class StorefrontAndOrdersTests : IClassFixture<CrmApiFactory>
 
     private sealed record OrderDetailDto(
         Guid Id,
+        int OrderNumber,
         string Status,
         decimal TotalAmount,
         List<OrderHistoryDto> StatusHistory);

@@ -20,13 +20,21 @@ public static class MerchantOrderEndpoints
 
         group.MapGet("/{id:guid}", GetAsync)
             .WithName("Merchant_Orders_Get")
-            .WithSummary("Get full order detail including items and status history.")
+            .WithSummary("Get full order detail including items, shipping, payment, and timeline.")
             .Produces<OrderDetailDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPatch("/{id:guid}/status", UpdateStatusAsync)
             .WithName("Merchant_Orders_UpdateStatus")
-            .WithSummary("Transition an order status using the state machine.")
+            .WithSummary("Transition an order status using the state machine (supports carrier & tracking on Shipped).")
+            .Produces<OrderDetailDto>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/{id:guid}/payment-decision", ReviewPaymentAsync)
+            .WithName("Merchant_Orders_ReviewPayment")
+            .WithSummary("Approve or reject a submitted card-to-card payment receipt.")
             .Produces<OrderDetailDto>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -83,6 +91,26 @@ public static class MerchantOrderEndpoints
             .ConfigureAwait(false);
 
         return TypedResults.Ok(updated);
+    }
+
+    private static async Task<Results<Ok<OrderDetailDto>, ValidationProblem>> ReviewPaymentAsync(
+        Guid id,
+        PaymentDecisionRequest request,
+        PaymentDecisionRequestValidator validator,
+        OrderService service,
+        CancellationToken cancellationToken)
+    {
+        var problem = await Validation.CheckAsync(validator, request, cancellationToken).ConfigureAwait(false);
+        if (problem is not null)
+        {
+            return problem;
+        }
+
+        var reviewed = await service
+            .ReviewOrderPaymentAsync(id, request, cancellationToken)
+            .ConfigureAwait(false);
+
+        return TypedResults.Ok(reviewed);
     }
 
     private static async Task<Ok<IReadOnlyList<OrderStatusHistoryDto>>> GetHistoryAsync(

@@ -1,15 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { Eye, RefreshCw, ShoppingBag } from 'lucide-react';
+import { Eye, RefreshCw, ShoppingBag, Truck } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useOutletContext, useParams } from 'react-router';
 import { useAuth } from '@/features/auth/auth-context';
 import { apiClient } from '@/shared/api/client';
-import { formatDate, formatMoney, toNumber } from '@/shared/lib/format';
+import { formatDate, formatMoney, formatOrderCode, toNumber } from '@/shared/lib/format';
 import { normalizeLanguage } from '@/shared/lib/i18n';
 import { Button } from '@/shared/ui/button';
 import { Card } from '@/shared/ui/card';
 import { Pagination } from '@/shared/ui/pagination';
+import { PaymentStatusBadge } from '@/shared/ui/payment-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/state-views';
 import { OrderStatusBadge } from '@/shared/ui/status-badge';
 import type { components } from '@/types/api';
@@ -95,15 +96,25 @@ export function StorefrontOrdersPage() {
             {ordersQuery.data.items.map((order) => (
               <Card key={order.id} className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="tabular-nums text-sm font-bold text-foreground" dir="ltr">
-                      #{order.id.slice(0, 8).toUpperCase()}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="tabular-nums text-sm font-bold text-foreground">
+                      #{formatOrderCode(order.id, order.orderNumber, lang)}
                     </span>
                     <OrderStatusBadge status={order.status} />
+                    <PaymentStatusBadge status={order.paymentStatus} />
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {formatDate(order.placedAt, lang)}
+                    {order.shippingCity ? ` · ${order.shippingCity}` : ''}
                   </p>
+                  {order.trackingCode ? (
+                    <p className="flex items-center gap-1 text-xs text-primary">
+                      <Truck className="size-3.5 shrink-0" aria-hidden="true" />
+                      <span dir="ltr" className="tabular-nums">
+                        {order.trackingCode}
+                      </span>
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center gap-3">

@@ -40,4 +40,21 @@ public sealed class OutboxProcessorTests
 
         Assert.Equal(expected, formatted);
     }
+
+    [Fact]
+    public void FormatOrderLabel_UsesSequentialOrderNumberWhenPresent()
+    {
+        var id = Guid.Parse("abcdef12-3456-7890-abcd-ef1234567890");
+        Assert.Equal("1042", OutboxProcessor.FormatOrderLabel(id, 1042));
+        Assert.Equal("ABCDEF12", OutboxProcessor.FormatOrderLabel(id, 0));
+    }
+
+    [Fact]
+    public void FormatTransitionReason_LocalizesSystemCodes()
+    {
+        Assert.Contains("مهلت", OutboxProcessor.FormatTransitionReason("payment_expired", isPersian: true)!);
+        Assert.Contains("expired", OutboxProcessor.FormatTransitionReason("payment_expired", isPersian: false)!);
+        Assert.Null(OutboxProcessor.FormatTransitionReason("auto_confirmed", isPersian: true));
+        Assert.Equal("Custom note", OutboxProcessor.FormatTransitionReason("Custom note", isPersian: true));
+    }
 }

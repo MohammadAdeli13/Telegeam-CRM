@@ -25,8 +25,18 @@ public interface IStorefrontTenantSetter
     void SetStorefrontTenant(Guid tenantId);
 }
 
+/// <summary>
+/// Narrow write-only surface used by trusted background workers (such as order expiry)
+/// to bind an isolated DI scope to a single tenant so EF Core global query filters and
+/// <c>TenantGuardInterceptor</c> remain strictly enforced outside HTTP requests.
+/// </summary>
+public interface ISystemTenantSetter
+{
+    void SetSystemTenant(Guid tenantId);
+}
+
 /// <summary>Mutable tenant context used by the request pipeline and by tests.</summary>
-public sealed class TenantContext : ITenantContext, IStorefrontTenantSetter
+public sealed class TenantContext : ITenantContext, IStorefrontTenantSetter, ISystemTenantSetter
 {
     public Guid? TenantId { get; private set; }
 
@@ -35,4 +45,6 @@ public sealed class TenantContext : ITenantContext, IStorefrontTenantSetter
     public void SetTenant(Guid? tenantId) => TenantId = tenantId;
 
     public void SetStorefrontTenant(Guid tenantId) => TenantId = tenantId;
+
+    public void SetSystemTenant(Guid tenantId) => TenantId = tenantId;
 }
