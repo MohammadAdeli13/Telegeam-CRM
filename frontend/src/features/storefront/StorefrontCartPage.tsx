@@ -1,21 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
+  Banknote,
   CheckCircle2,
+  CreditCard,
+  MapPin,
   Minus,
   Package,
+  Pencil,
   Plus,
   RefreshCw,
   ShoppingBag,
   ShoppingCart,
+  Star,
   Trash2,
+  Truck,
 } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
 import { useAuth } from '@/features/auth/auth-context';
 import { apiClient, extractProblemCode, extractProblemMessage } from '@/shared/api/client';
+import { cn } from '@/shared/lib/cn';
 import {
+  computeEffectiveShippingCost,
   formatMoney,
   formatNumber,
   isValidOptionalPhone,
@@ -24,16 +32,20 @@ import {
 } from '@/shared/lib/format';
 import { normalizeLanguage } from '@/shared/lib/i18n';
 import { triggerHaptic } from '@/shared/lib/telegram';
+import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
+import { ConfirmDialog } from '@/shared/ui/confirm-dialog';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import { EmptyState } from '@/shared/ui/state-views';
 import { Textarea } from '@/shared/ui/textarea';
 import type { components } from '@/types/api';
 import { useStorefrontCart } from './cart-context';
+import { CustomerAddressModal } from './CustomerAddressModal';
 
 type StorefrontShop = components['schemas']['StorefrontShopDto'];
+type CustomerAddressDto = components['schemas']['CustomerAddressDto'];
 
 export function StorefrontCartPage() {
   const { t, i18n } = useTranslation();
@@ -46,14 +58,115 @@ export function StorefrontCartPage() {
 
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [selectedShippingId, setSelectedShippingId] = useState<string | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
+    'CardToCard' | 'PayOnDelivery' | null
+  >(() => {
+    if (shop.enableCardToCard) {
+      return 'CardToCard';
+    }
+    if (shop.enablePayOnDelivery) {
+      return 'PayOnDelivery';
+    }
+    return null;
+  });
+
+  const [addressModal, setAddressModal] = useState<{
+    open: boolean;
+    editing: CustomerAddressDto | null;
+  }>({ open: false, editing: null });
+  const [deletingAddress, setDeletingAddress] = useState<CustomerAddressDto | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   const lang = normalizeLanguage(i18n.language);
   const isAuthenticated = authStatus === 'authenticated';
   const cartSignature = items.map((i) => `${i.productId}:${i.quantity}`).join('|');
 
+  const shippingQuery = useQuery({
+    queryKey: ['storefront-shipping-methods', shopSlug],
+    enabled: Boolean(shopSlug),
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET(
+        '/api/v1/storefront/{shopSlug}/shipping-methods',
+        { params: { path: { shopSlug } } },
+      );
+      if (error || !data) {
+        throw new Error('Failed to load shipping methods');
+      }
+      return data;
+    },
+  });
+
+  const addressesQuery = useQuery({
+    queryKey: ['storefront-addresses', shopSlug],
+    enabled: isAuthenticated && Boolean(shopSlug),
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET('/api/v1/storefront/{shopSlug}/addresses', {
+        params: { path: { shopSlug } },
+      });
+      if (error || !data) {
+        throw new Error('Failed to load addresses');
+      }
+      return data;
+    },
+  });
+
+  const shippingMethods = shippingQuery.data ?? [];
+  const addresses = addressesQuery.data ?? [];
+
+  // Auto-select default address when loaded.
+  useEffect(() => {
+    if (addresses.length === 0) {
+      setSelectedAddressId(null);
+      return;
+    }
+    if (selectedAddressId && addresses.some((a) => a.id === selectedAddressId)) {
+      return;
+    }
+    const def = addresses.find((a) => a.isDefault) ?? addresses[0];
+    if (def) {
+      setSelectedAddressId(def.id);
+    }
+  }, [addresses, selectedAddressId]);
+
+  // Auto-select first shipping method when shop defines shipping options.
+  useEffect(() => {
+    if (shippingMethods.length === 0) {
+      setSelectedShippingId(null);
+      return;
+    }
+    if (selectedShippingId && shippingMethods.some((m) => m.id === selectedShippingId)) {
+      return;
+    }
+    const first = shippingMethods[0];
+    if (first) {
+      setSelectedShippingId(first.id);
+    }
+  }, [shippingMethods, selectedShippingId]);
+
+  // Keep payment method valid if shop config updates.
+  useEffect(() => {
+    if (selectedPaymentMethod === 'CardToCard' && !shop.enableCardToCard) {
+      setSelectedPaymentMethod(shop.enablePayOnDelivery ? 'PayOnDelivery' : null);
+    } else if (selectedPaymentMethod === 'PayOnDelivery' && !shop.enablePayOnDelivery) {
+      setSelectedPaymentMethod(shop.enableCardToCard ? 'CardToCard' : null);
+    } else if (!selectedPaymentMethod) {
+      if (shop.enableCardToCard) {
+        setSelectedPaymentMethod('CardToCard');
+      } else if (shop.enablePayOnDelivery) {
+        setSelectedPaymentMethod('PayOnDelivery');
+      }
+    }
+  }, [selectedPaymentMethod, shop.enableCardToCard, shop.enablePayOnDelivery]);
+
   const validateQuery = useQuery({
-    queryKey: ['storefront-cart-validate', shopSlug, cartSignature],
+    queryKey: [
+      'storefront-cart-validate',
+      shopSlug,
+      cartSignature,
+      selectedShippingId ?? 'none',
+    ],
     enabled: isAuthenticated && items.length > 0 && Boolean(shopSlug),
     queryFn: async () => {
       const { data, error } = await apiClient.POST('/api/v1/storefront/{shopSlug}/cart/validate', {
@@ -63,12 +176,45 @@ export function StorefrontCartPage() {
             productId: item.productId,
             quantity: item.quantity,
           })),
+          shippingMethodId: selectedShippingId,
         },
       });
       if (error || !data) {
         throw error ?? new Error('Cart validation failed');
       }
       return data;
+    },
+  });
+
+  const setDefaultAddressMutation = useMutation({
+    mutationFn: async (addressId: string) => {
+      const { error } = await apiClient.POST(
+        '/api/v1/storefront/{shopSlug}/addresses/{id}/default',
+        { params: { path: { shopSlug, id: addressId } } },
+      );
+      if (error) {
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      triggerHaptic('selection');
+      void queryClient.invalidateQueries({ queryKey: ['storefront-addresses', shopSlug] });
+    },
+  });
+
+  const deleteAddressMutation = useMutation({
+    mutationFn: async (addressId: string) => {
+      const { error } = await apiClient.DELETE('/api/v1/storefront/{shopSlug}/addresses/{id}', {
+        params: { path: { shopSlug, id: addressId } },
+      });
+      if (error) {
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      triggerHaptic('success');
+      setDeletingAddress(null);
+      void queryClient.invalidateQueries({ queryKey: ['storefront-addresses', shopSlug] });
     },
   });
 
@@ -89,6 +235,9 @@ export function StorefrontCartPage() {
           })),
           note: note.trim() || null,
           phone: normalizedPhone || null,
+          addressId: selectedAddressId,
+          shippingMethodId: selectedShippingId,
+          paymentMethod: selectedPaymentMethod,
         },
       });
       if (error || !data) {
@@ -146,6 +295,22 @@ export function StorefrontCartPage() {
   const validationByProduct = new Map(
     validation?.items.map((line) => [line.productId, line]) ?? [],
   );
+
+  const selectedShipping = shippingMethods.find((m) => m.id === selectedShippingId) ?? null;
+  const effectiveSubtotal = validation ? toNumber(validation.subtotalAmount) : subtotal;
+  const effectiveShipping = validation
+    ? toNumber(validation.shippingAmount)
+    : selectedShipping
+      ? computeEffectiveShippingCost(selectedShipping, effectiveSubtotal)
+      : 0;
+  const isPayAtDest = validation
+    ? validation.isShippingPayAtDestination
+    : Boolean(selectedShipping?.isPayAtDestination);
+  const effectiveTotal = validation
+    ? toNumber(validation.totalAmount)
+    : effectiveSubtotal + effectiveShipping;
+
+  const showPaymentSection = shop.enableCardToCard || shop.enablePayOnDelivery;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -291,15 +456,315 @@ export function StorefrontCartPage() {
         })}
       </div>
 
+      {/* Delivery Addresses (authenticated) */}
+      {isAuthenticated ? (
+        <Card className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <MapPin className="size-4 text-primary" aria-hidden="true" />
+              <h2 className="text-sm font-bold text-foreground">
+                {t('storefront.addresses.sectionTitle')}
+              </h2>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAddressModal({ open: true, editing: null })}
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              <span>{t('storefront.addresses.addNew')}</span>
+            </Button>
+          </div>
+
+          {addresses.length === 0 ? (
+            <p className="text-xs text-muted-foreground">{t('storefront.addresses.empty')}</p>
+          ) : (
+            <div className="space-y-2">
+              {addresses.map((addr) => {
+                const selected = selectedAddressId === addr.id;
+                return (
+                  <div
+                    key={addr.id}
+                    className={cn(
+                      'rounded-xl border p-3 transition-colors',
+                      selected
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border bg-background hover:bg-surface-elevated',
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('selection');
+                          setSelectedAddressId(addr.id);
+                        }}
+                        className="flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 text-start"
+                      >
+                        <span
+                          className={cn(
+                            'mt-1 flex size-4 shrink-0 items-center justify-center rounded-full border-2',
+                            selected ? 'border-primary' : 'border-muted-foreground/50',
+                          )}
+                          aria-hidden="true"
+                        >
+                          {selected ? (
+                            <span className="size-2 rounded-full bg-primary" />
+                          ) : null}
+                        </span>
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-sm font-semibold text-foreground">
+                              {addr.title}
+                            </span>
+                            {addr.isDefault ? (
+                              <Badge variant="success">{t('storefront.addresses.defaultBadge')}</Badge>
+                            ) : null}
+                          </div>
+                          <p className="text-xs text-foreground">
+                            {addr.recipientName} ·{' '}
+                            <span className="tabular-nums" dir="ltr">
+                              {addr.phone}
+                            </span>
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {addr.province}، {addr.city}، {addr.addressLine}
+                            {addr.plaque
+                              ? `، ${t('storefront.addresses.plaqueShort', { value: addr.plaque })}`
+                              : ''}
+                            {addr.unit
+                              ? `، ${t('storefront.addresses.unitShort', { value: addr.unit })}`
+                              : ''}
+                          </p>
+                          {addr.postalCode ? (
+                            <p className="tabular-nums text-[11px] text-muted-foreground">
+                              {t('orders.postalCodeLabel')}: <span dir="ltr">{addr.postalCode}</span>
+                            </p>
+                          ) : null}
+                        </div>
+                      </button>
+
+                      <div className="flex shrink-0 items-center gap-1">
+                        {!addr.isDefault ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={t('storefront.addresses.setDefault')}
+                            onClick={() => setDefaultAddressMutation.mutate(addr.id)}
+                          >
+                            <Star className="size-4 text-muted-foreground" aria-hidden="true" />
+                          </Button>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={t('common.edit')}
+                          onClick={() => setAddressModal({ open: true, editing: addr })}
+                        >
+                          <Pencil className="size-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={t('common.delete')}
+                          onClick={() => setDeletingAddress(addr)}
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="size-4" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      ) : null}
+
+      {/* Shipping Methods */}
+      {shippingMethods.length > 0 ? (
+        <Card className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Truck className="size-4 text-primary" aria-hidden="true" />
+            <h2 className="text-sm font-bold text-foreground">
+              {t('storefront.checkout.shippingSectionTitle')}
+            </h2>
+          </div>
+
+          <div className="space-y-2">
+            {shippingMethods.map((method) => {
+              const selected = selectedShippingId === method.id;
+              const cost = computeEffectiveShippingCost(method, effectiveSubtotal);
+              const unlockedFree =
+                !method.isPayAtDestination &&
+                method.freeAboveAmount !== null &&
+                method.freeAboveAmount !== undefined &&
+                effectiveSubtotal >= toNumber(method.freeAboveAmount);
+
+              return (
+                <button
+                  key={method.id}
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('selection');
+                    setSelectedShippingId(method.id);
+                  }}
+                  className={cn(
+                    'flex w-full cursor-pointer items-start justify-between gap-3 rounded-xl border p-3 text-start transition-colors',
+                    selected
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border bg-background hover:bg-surface-elevated',
+                  )}
+                >
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <span
+                      className={cn(
+                        'mt-1 flex size-4 shrink-0 items-center justify-center rounded-full border-2',
+                        selected ? 'border-primary' : 'border-muted-foreground/50',
+                      )}
+                      aria-hidden="true"
+                    >
+                      {selected ? <span className="size-2 rounded-full bg-primary" /> : null}
+                    </span>
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="text-sm font-semibold text-foreground">{method.name}</p>
+                      {method.estimatedDaysText ? (
+                        <p className="text-xs text-muted-foreground">{method.estimatedDaysText}</p>
+                      ) : null}
+                      {method.description ? (
+                        <p className="text-xs text-muted-foreground">{method.description}</p>
+                      ) : null}
+                      {unlockedFree ? (
+                        <p className="text-xs font-medium text-success">
+                          {t('storefront.checkout.freeUnlocked')}
+                        </p>
+                      ) : !method.isPayAtDestination && method.freeAboveAmount ? (
+                        <p className="text-[11px] text-muted-foreground">
+                          {t('storefront.checkout.freeAboveHint', {
+                            amount: formatMoney(method.freeAboveAmount, shop.currency, lang),
+                          })}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <span className="tabular-nums shrink-0 text-xs font-bold text-primary">
+                    {method.isPayAtDestination
+                      ? t('orders.payAtDestination')
+                      : cost === 0
+                        ? t('orders.shippingFree')
+                        : formatMoney(cost, shop.currency, lang)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+      ) : null}
+
+      {/* Payment Methods */}
+      {isAuthenticated && showPaymentSection ? (
+        <Card className="space-y-3">
+          <div className="flex items-center gap-2">
+            <CreditCard className="size-4 text-primary" aria-hidden="true" />
+            <h2 className="text-sm font-bold text-foreground">
+              {t('storefront.checkout.paymentSectionTitle')}
+            </h2>
+          </div>
+
+          <div className="space-y-2">
+            {shop.enableCardToCard ? (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('selection');
+                  setSelectedPaymentMethod('CardToCard');
+                }}
+                className={cn(
+                  'flex w-full cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-start transition-colors',
+                  selectedPaymentMethod === 'CardToCard'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border bg-background hover:bg-surface-elevated',
+                )}
+              >
+                <CreditCard className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    {t('orders.paymentMethods.CardToCard')}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {t('storefront.checkout.cardToCardDesc')}
+                  </p>
+                </div>
+              </button>
+            ) : null}
+
+            {shop.enablePayOnDelivery ? (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('selection');
+                  setSelectedPaymentMethod('PayOnDelivery');
+                }}
+                className={cn(
+                  'flex w-full cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-start transition-colors',
+                  selectedPaymentMethod === 'PayOnDelivery'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border bg-background hover:bg-surface-elevated',
+                )}
+              >
+                <Banknote className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    {t('orders.paymentMethods.PayOnDelivery')}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {t('storefront.checkout.payOnDeliveryDesc')}
+                  </p>
+                </div>
+              </button>
+            ) : null}
+          </div>
+        </Card>
+      ) : null}
+
       {/* Totals & Auto-Validation */}
       <Card className="space-y-3">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">
-            {validation ? t('storefront.verifiedTotal') : t('storefront.subtotal')}
-          </span>
-          <span className="tabular-nums text-lg font-bold text-primary">
-            {formatMoney(validation ? validation.totalAmount : subtotal, shop.currency, lang)}
-          </span>
+        <div className="space-y-2 text-sm">
+          {selectedShipping ? (
+            <>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{t('orders.subtotal')}</span>
+                <span className="tabular-nums font-medium text-foreground">
+                  {formatMoney(effectiveSubtotal, shop.currency, lang)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{t('orders.shippingCost')}</span>
+                <span className="tabular-nums font-medium text-foreground">
+                  {isPayAtDest
+                    ? t('orders.payAtDestination')
+                    : effectiveShipping === 0
+                      ? t('orders.shippingFree')
+                      : formatMoney(effectiveShipping, shop.currency, lang)}
+                </span>
+              </div>
+            </>
+          ) : null}
+
+          <div className="flex items-center justify-between border-t border-border pt-2">
+            <span className="text-muted-foreground">
+              {validation ? t('storefront.verifiedTotal') : t('storefront.subtotal')}
+            </span>
+            <span className="tabular-nums text-lg font-bold text-primary">
+              {formatMoney(effectiveTotal, shop.currency, lang)}
+            </span>
+          </div>
         </div>
 
         {isAuthenticated ? (
@@ -354,23 +819,25 @@ export function StorefrontCartPage() {
           </CardHeader>
 
           <form onSubmit={handleCheckout} className="space-y-3.5" noValidate>
-            <div className="space-y-1.5">
-              <Label htmlFor="checkout-phone">{t('storefront.phoneLabel')}</Label>
-              <Input
-                id="checkout-phone"
-                dir="ltr"
-                type="tel"
-                inputMode="tel"
-                value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value);
-                  if (formError) {
-                    setFormError(null);
-                  }
-                }}
-                placeholder={t('storefront.phonePlaceholder')}
-              />
-            </div>
+            {!selectedAddressId ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="checkout-phone">{t('storefront.phoneLabel')}</Label>
+                <Input
+                  id="checkout-phone"
+                  dir="ltr"
+                  type="tel"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    if (formError) {
+                      setFormError(null);
+                    }
+                  }}
+                  placeholder={t('storefront.phonePlaceholder')}
+                />
+              </div>
+            ) : null}
 
             <div className="space-y-1.5">
               <Label htmlFor="checkout-note">{t('storefront.noteLabel')}</Label>
@@ -419,6 +886,36 @@ export function StorefrontCartPage() {
           </Button>
         </Card>
       )}
+
+      {addressModal.open ? (
+        <CustomerAddressModal
+          shopSlug={shopSlug}
+          editing={addressModal.editing}
+          onSaved={(saved) => {
+            setSelectedAddressId(saved.id);
+            setAddressModal({ open: false, editing: null });
+          }}
+          onClose={() => setAddressModal({ open: false, editing: null })}
+        />
+      ) : null}
+
+      <ConfirmDialog
+        open={deletingAddress !== null}
+        title={t('storefront.addresses.deleteTitle')}
+        description={
+          deletingAddress
+            ? t('storefront.addresses.confirmDelete', { title: deletingAddress.title })
+            : ''
+        }
+        confirmLabel={t('common.delete')}
+        busy={deleteAddressMutation.isPending}
+        onCancel={() => setDeletingAddress(null)}
+        onConfirm={() => {
+          if (deletingAddress) {
+            deleteAddressMutation.mutate(deletingAddress.id);
+          }
+        }}
+      />
     </div>
   );
 }

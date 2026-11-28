@@ -3,13 +3,16 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  CreditCard,
   Image as ImageIcon,
   LogOut,
   Package,
+  Pencil,
   Plus,
   Save,
   Store,
   Trash2,
+  Truck,
   Upload,
 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
@@ -18,15 +21,24 @@ import { Link, useNavigate } from 'react-router';
 import { useAuth } from '@/features/auth/auth-context';
 import { apiClient, extractProblemMessage } from '@/shared/api/client';
 import { uploadDefaultProductImage, uploadShopLogo } from '@/shared/api/uploads';
+import { formatMoney, toLatinDigits, toNumber } from '@/shared/lib/format';
+import { normalizeLanguage } from '@/shared/lib/i18n';
 import { triggerHaptic } from '@/shared/lib/telegram';
+import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
+import { ConfirmDialog } from '@/shared/ui/confirm-dialog';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import { Select } from '@/shared/ui/select';
 import { ErrorState, LoadingState } from '@/shared/ui/state-views';
+import { Switch } from '@/shared/ui/switch';
 import { Textarea } from '@/shared/ui/textarea';
+import type { components } from '@/types/api';
 import { parseSettingDisplayValue, serializeSettingValue } from './merchant-state';
+import { ShippingMethodModal } from './ShippingMethodModal';
+
+type ShippingMethodDto = components['schemas']['ShippingMethodDto'];
 
 interface CustomSettingRow {
   id: string;
@@ -39,14 +51,15 @@ const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'i
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export function MerchantSettingsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { session, telegram, updateActiveTenant, signOut } = useAuth();
+  const lang = normalizeLanguage(i18n.language);
   const activeShop = session?.activeTenant;
   const tenantKey = activeShop?.id ?? 'none';
 
-  // Section 1: Shop Profile
+  // Section 1: Basic Shop Profile
   const [shopName, setShopName] = useState(activeShop?.name ?? '');
   const [defaultLanguage, setDefaultLanguage] = useState(activeShop?.defaultLanguage ?? 'fa');
   const [currency, setCurrency] = useState(activeShop?.currency ?? 'IRT');
@@ -54,10 +67,29 @@ export function MerchantSettingsPage() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
 
-  // Section 2: Branding feedback
+  // Section 2: Branding
   const [brandingError, setBrandingError] = useState<string | null>(null);
 
-  // Section 3: Friendly Shop Details + Collapsed Custom Fields
+  // Section 3: Checkout, Payment & Order Approval
+  const [requireOrderApproval, setRequireOrderApproval] = useState(false);
+  const [enablePayOnDelivery, setEnablePayOnDelivery] = useState(true);
+  const [enableCardToCard, setEnableCardToCard] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardHolderName, setCardHolderName] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [paymentExpiryMinutes, setPaymentExpiryMinutes] = useState('60');
+  const [checkoutDirty, setCheckoutDirty] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [checkoutSaved, setCheckoutSaved] = useState(false);
+
+  // Section 4: Shipping Methods modals
+  const [shippingModal, setShippingModal] = useState<{
+    open: boolean;
+    editing: ShippingMethodDto | null;
+  }>({ open: false, editing: null });
+  const [deletingShipping, setDeletingShipping] = useState<ShippingMethodDto | null>(null);
+
+  // Section 5: Friendly Shop Details + Collapsed Custom Fields
   const [supportTelegram, setSupportTelegram] = useState('');
   const [storeBio, setStoreBio] = useState('');
   const [shippingNote, setShippingNote] = useState('');
@@ -79,6 +111,18 @@ export function MerchantSettingsPage() {
     },
   });
 
+  const shippingQuery = useQuery({
+    queryKey: ['merchant', tenantKey, 'shipping-methods'],
+    enabled: Boolean(activeShop),
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET('/api/v1/merchant/shipping-methods');
+      if (error || !data) {
+        throw new Error('Failed to load shipping methods');
+      }
+      return data;
+    },
+  });
+
   const settingsQuery = useQuery({
     queryKey: ['merchant', tenantKey, 'settings'],
     enabled: Boolean(activeShop),
@@ -91,7 +135,6 @@ export function MerchantSettingsPage() {
     },
   });
 
-  // Sync profile form cleanly whenever tenant changes or fresh profile loads.
   useEffect(() => {
     if (!shopQuery.data) {
       return;
@@ -101,9 +144,18 @@ export function MerchantSettingsPage() {
     setCurrency(shopQuery.data.currency);
     setProfileDirty(false);
     setProfileError(null);
+
+    setRequireOrderApproval(shopQuery.data.requireOrderApproval);
+    setEnablePayOnDelivery(shopQuery.data.enablePayOnDelivery);
+    setEnableCardToCard(shopQuery.data.enableCardToCard);
+    setCardNumber(shopQuery.data.cardNumber ?? '');
+    setCardHolderName(shopQuery.data.cardHolderName ?? '');
+    setBankName(shopQuery.data.bankName ?? '');
+    setPaymentExpiryMinutes(String(toNumber(shopQuery.data.paymentExpiryMinutes, 60)));
+    setCheckoutDirty(false);
+    setCheckoutError(null);
   }, [tenantKey, shopQuery.data]);
 
-  // Sync shop settings cleanly whenever tenant changes or fresh settings load.
   useEffect(() => {
     if (!settingsQuery.data) {
       return;
@@ -163,6 +215,59 @@ export function MerchantSettingsPage() {
     onError: (err) => {
       triggerHaptic('error');
       setProfileError(extractProblemMessage(err, t('app.errorGeneric')));
+    },
+  });
+
+  const updateCheckoutSettingsMutation = useMutation({
+    mutationFn: async () => {
+      const parsedExpiry = Math.min(
+        10080,
+        Math.max(5, Number.parseInt(toLatinDigits(paymentExpiryMinutes), 10) || 60),
+      );
+      const { data, error } = await apiClient.PATCH('/api/v1/merchant/shop', {
+        body: {
+          requireOrderApproval,
+          enablePayOnDelivery,
+          enableCardToCard,
+          cardNumber: toLatinDigits(cardNumber).trim(),
+          cardHolderName: cardHolderName.trim(),
+          bankName: bankName.trim(),
+          paymentExpiryMinutes: parsedExpiry,
+        },
+      });
+      if (error || !data) {
+        throw error ?? new Error('Failed to update checkout settings');
+      }
+      return data;
+    },
+    onSuccess: (updated) => {
+      triggerHaptic('success');
+      setCheckoutDirty(false);
+      setCheckoutError(null);
+      setCheckoutSaved(true);
+      window.setTimeout(() => setCheckoutSaved(false), 2500);
+      void queryClient.invalidateQueries({ queryKey: ['merchant', tenantKey, 'shop-profile'] });
+      void queryClient.invalidateQueries({ queryKey: ['storefront-shop', updated.slug] });
+    },
+    onError: (err) => {
+      triggerHaptic('error');
+      setCheckoutError(extractProblemMessage(err, t('app.errorGeneric')));
+    },
+  });
+
+  const deleteShippingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await apiClient.DELETE('/api/v1/merchant/shipping-methods/{id}', {
+        params: { path: { id } },
+      });
+      if (error) {
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      triggerHaptic('success');
+      setDeletingShipping(null);
+      void queryClient.invalidateQueries({ queryKey: ['merchant', tenantKey, 'shipping-methods'] });
     },
   });
 
@@ -284,6 +389,17 @@ export function MerchantSettingsPage() {
     updateProfileMutation.mutate();
   };
 
+  const handleCheckoutSettingsSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    setCheckoutError(null);
+    const digitsOnly = toLatinDigits(cardNumber).replace(/\D/g, '');
+    if (enableCardToCard && digitsOnly.length < 12) {
+      setCheckoutError(t('merchant.checkoutSettings.cardNumberRequired'));
+      return;
+    }
+    updateCheckoutSettingsMutation.mutate();
+  };
+
   const handleBrandingFile = (kind: 'logo' | 'default', file: File | null) => {
     setBrandingError(null);
     if (!file) {
@@ -359,6 +475,7 @@ export function MerchantSettingsPage() {
   const logoUrl = shopProfile?.logoUrl ?? activeShop?.logoUrl ?? null;
   const defaultProductImageUrl =
     shopProfile?.defaultProductImageUrl ?? activeShop?.defaultProductImageUrl ?? null;
+  const shippingMethods = shippingQuery.data ?? [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -615,7 +732,295 @@ export function MerchantSettingsPage() {
         </div>
       </Card>
 
-      {/* Section 3: Friendly Storefront Details (zero JSON jargon!) */}
+      {/* Section 3: Checkout, Payment & Order Approval */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <CreditCard className="size-4 text-primary" aria-hidden="true" />
+            <CardTitle>{t('merchant.checkoutSettings.sectionTitle')}</CardTitle>
+          </div>
+          <CardDescription>{t('merchant.checkoutSettings.sectionDesc')}</CardDescription>
+        </CardHeader>
+
+        {shopQuery.isLoading ? (
+          <LoadingState rows={2} />
+        ) : (
+          <form onSubmit={handleCheckoutSettingsSubmit} className="space-y-4">
+            <div className="space-y-1.5 rounded-xl border border-border bg-background p-3">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="chk-require-approval" className="cursor-pointer">
+                  {t('merchant.checkoutSettings.requireApprovalLabel')}
+                </Label>
+                <Switch
+                  id="chk-require-approval"
+                  checked={requireOrderApproval}
+                  onCheckedChange={(next) => {
+                    setRequireOrderApproval(next);
+                    setCheckoutDirty(true);
+                  }}
+                  ariaLabel={t('merchant.checkoutSettings.requireApprovalLabel')}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t('merchant.checkoutSettings.requireApprovalHint')}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2">
+              <Label htmlFor="chk-pay-on-delivery" className="cursor-pointer">
+                {t('merchant.checkoutSettings.enablePayOnDeliveryLabel')}
+              </Label>
+              <Switch
+                id="chk-pay-on-delivery"
+                checked={enablePayOnDelivery}
+                onCheckedChange={(next) => {
+                  setEnablePayOnDelivery(next);
+                  setCheckoutDirty(true);
+                }}
+                ariaLabel={t('merchant.checkoutSettings.enablePayOnDeliveryLabel')}
+              />
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-border bg-background p-3">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="chk-card-to-card" className="cursor-pointer">
+                  {t('merchant.checkoutSettings.enableCardToCardLabel')}
+                </Label>
+                <Switch
+                  id="chk-card-to-card"
+                  checked={enableCardToCard}
+                  onCheckedChange={(next) => {
+                    setEnableCardToCard(next);
+                    setCheckoutDirty(true);
+                  }}
+                  ariaLabel={t('merchant.checkoutSettings.enableCardToCardLabel')}
+                />
+              </div>
+
+              {enableCardToCard ? (
+                <div className="space-y-3 border-t border-border pt-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="chk-card-number">
+                        {t('merchant.checkoutSettings.cardNumberLabel')}
+                      </Label>
+                      <Input
+                        id="chk-card-number"
+                        dir="ltr"
+                        inputMode="numeric"
+                        maxLength={25}
+                        value={cardNumber}
+                        placeholder={t('merchant.checkoutSettings.cardNumberPlaceholder')}
+                        onChange={(e) => {
+                          setCardNumber(e.target.value);
+                          setCheckoutDirty(true);
+                        }}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="chk-card-holder">
+                        {t('merchant.checkoutSettings.cardHolderLabel')}
+                      </Label>
+                      <Input
+                        id="chk-card-holder"
+                        maxLength={120}
+                        value={cardHolderName}
+                        placeholder={t('merchant.checkoutSettings.cardHolderPlaceholder')}
+                        onChange={(e) => {
+                          setCardHolderName(e.target.value);
+                          setCheckoutDirty(true);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="chk-bank-name">
+                        {t('merchant.checkoutSettings.bankNameLabel')}
+                      </Label>
+                      <Input
+                        id="chk-bank-name"
+                        maxLength={80}
+                        value={bankName}
+                        placeholder={t('merchant.checkoutSettings.bankNamePlaceholder')}
+                        onChange={(e) => {
+                          setBankName(e.target.value);
+                          setCheckoutDirty(true);
+                        }}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="chk-expiry-min">
+                        {t('merchant.checkoutSettings.expiryMinutesLabel')}
+                      </Label>
+                      <Input
+                        id="chk-expiry-min"
+                        dir="ltr"
+                        inputMode="numeric"
+                        value={paymentExpiryMinutes}
+                        onChange={(e) => {
+                          setPaymentExpiryMinutes(e.target.value);
+                          setCheckoutDirty(true);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    {t('merchant.checkoutSettings.expiryMinutesHint')}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            {checkoutError ? (
+              <p
+                role="alert"
+                className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+              >
+                {checkoutError}
+              </p>
+            ) : null}
+
+            {checkoutSaved ? (
+              <p
+                role="status"
+                className="flex items-center gap-1.5 rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-xs text-success"
+              >
+                <Check className="size-4" aria-hidden="true" />
+                <span>{t('merchant.checkoutSettings.checkoutSettingsSaved')}</span>
+              </p>
+            ) : null}
+
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                disabled={!checkoutDirty || updateCheckoutSettingsMutation.isPending}
+                className="w-full sm:w-auto"
+              >
+                <Save className="size-4" aria-hidden="true" />
+                <span>
+                  {updateCheckoutSettingsMutation.isPending
+                    ? t('common.saving')
+                    : t('merchant.checkoutSettings.saveCheckoutSettings')}
+                </span>
+              </Button>
+            </div>
+          </form>
+        )}
+      </Card>
+
+      {/* Section 4: Shipping Methods & Rates */}
+      <Card className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <Truck className="size-4 text-primary" aria-hidden="true" />
+              <CardTitle>{t('merchant.shipping.sectionTitle')}</CardTitle>
+            </div>
+            <CardDescription className="mt-1">
+              {t('merchant.shipping.sectionDesc')}
+            </CardDescription>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setShippingModal({ open: true, editing: null })}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            <span>{t('merchant.shipping.addNew')}</span>
+          </Button>
+        </div>
+
+        {shippingQuery.isLoading ? (
+          <LoadingState rows={2} />
+        ) : shippingQuery.isError ? (
+          <ErrorState onRetry={() => void shippingQuery.refetch()} />
+        ) : shippingMethods.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border bg-background p-4 text-center text-xs text-muted-foreground">
+            {t('merchant.shipping.empty')}
+          </p>
+        ) : (
+          <div className="divide-y divide-border rounded-xl border border-border bg-background">
+            {shippingMethods.map((method) => {
+              const priceVal = toNumber(method.price);
+              const freeAboveVal =
+                method.freeAboveAmount !== null && method.freeAboveAmount !== undefined
+                  ? toNumber(method.freeAboveAmount)
+                  : null;
+
+              return (
+                <div
+                  key={method.id}
+                  className={
+                    method.isActive
+                      ? 'flex flex-wrap items-center justify-between gap-3 p-3.5'
+                      : 'flex flex-wrap items-center justify-between gap-3 p-3.5 opacity-60'
+                  }
+                >
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">{method.name}</p>
+                      {method.isPayAtDestination ? (
+                        <Badge variant="secondary">{t('orders.payAtDestination')}</Badge>
+                      ) : priceVal === 0 ? (
+                        <Badge variant="secondary">{t('orders.shippingFree')}</Badge>
+                      ) : (
+                        <span className="tabular-nums text-xs font-semibold text-primary">
+                          {formatMoney(priceVal, currency, lang)}
+                        </span>
+                      )}
+                      {method.isActive ? (
+                        <Badge variant="secondary">{t('merchant.shipping.activeLabel')}</Badge>
+                      ) : null}
+                    </div>
+
+                    {method.description ? (
+                      <p className="text-xs text-muted-foreground">{method.description}</p>
+                    ) : null}
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {method.estimatedDaysText ? <span>{method.estimatedDaysText}</span> : null}
+                      {!method.isPayAtDestination && freeAboveVal !== null ? (
+                        <span className="tabular-nums">
+                          {t('orders.shippingFree')}: ≥ {formatMoney(freeAboveVal, currency, lang)}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShippingModal({ open: true, editing: method })}
+                    >
+                      <Pencil className="size-3.5" aria-hidden="true" />
+                      <span>{t('common.edit')}</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t('common.delete')}
+                      onClick={() => setDeletingShipping(method)}
+                      className="text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="size-4" aria-hidden="true" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* Section 5: Friendly Storefront Details (zero JSON jargon!) */}
       <Card>
         <CardHeader>
           <CardTitle>{t('merchant.settings.shopInfoTitle')}</CardTitle>
@@ -819,41 +1224,55 @@ export function MerchantSettingsPage() {
         )}
       </Card>
 
-      {/* Section 4: Session & Account (Sign out hidden inside Telegram Mini App to avoid trap) */}
-      {!telegram.inTelegram || true ? (
-        <Card
-          className={
-            telegram.inTelegram ? 'space-y-3 lg:hidden' : 'space-y-3'
-          }
-        >
-          <CardHeader className="mb-0">
-            <CardTitle>{t('merchant.settings.sessionSectionTitle')}</CardTitle>
-            <CardDescription>{activeShop?.name}</CardDescription>
-          </CardHeader>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm" className="lg:hidden">
-              <Link to="/auth">
-                <Store className="size-4" aria-hidden="true" />
-                <span>{t('merchant.switchShop')}</span>
-              </Link>
-            </Button>
+      {/* Section 6: Session & Account */}
+      <Card className={telegram.inTelegram ? 'space-y-3 lg:hidden' : 'space-y-3'}>
+        <CardHeader className="mb-0">
+          <CardTitle>{t('merchant.settings.sessionSectionTitle')}</CardTitle>
+          <CardDescription>{activeShop?.name}</CardDescription>
+        </CardHeader>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm" className="lg:hidden">
+            <Link to="/auth">
+              <Store className="size-4" aria-hidden="true" />
+              <span>{t('merchant.switchShop')}</span>
+            </Link>
+          </Button>
 
-            {!telegram.inTelegram ? (
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  signOut();
-                  void navigate('/auth', { replace: true });
-                }}
-              >
-                <LogOut className="size-4" aria-hidden="true" />
-                <span>{t('auth.signOut')}</span>
-              </Button>
-            ) : null}
-          </div>
-        </Card>
+          {!telegram.inTelegram ? (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                signOut();
+                void navigate('/auth', { replace: true });
+              }}
+            >
+              <LogOut className="size-4" aria-hidden="true" />
+              <span>{t('auth.signOut')}</span>
+            </Button>
+          ) : null}
+        </div>
+      </Card>
+
+      {shippingModal.open ? (
+        <ShippingMethodModal
+          tenantKey={tenantKey}
+          currency={currency}
+          editing={shippingModal.editing}
+          onClose={() => setShippingModal({ open: false, editing: null })}
+        />
+      ) : null}
+
+      {deletingShipping ? (
+        <ConfirmDialog
+          open
+          title={t('merchant.shipping.deleteTitle')}
+          description={t('merchant.shipping.confirmDelete', { name: deletingShipping.name })}
+          busy={deleteShippingMutation.isPending}
+          onConfirm={() => deleteShippingMutation.mutate(deletingShipping.id)}
+          onCancel={() => setDeletingShipping(null)}
+        />
       ) : null}
     </div>
   );

@@ -3,6 +3,7 @@ import { getAccessToken } from './session';
 
 type ProductImageDto = components['schemas']['ProductImageDto'];
 type MerchantShopDto = components['schemas']['MerchantShopDto'];
+type OrderDetailDto = components['schemas']['OrderDetailDto'];
 
 export interface UploadProblem {
   code?: string;
@@ -80,4 +81,20 @@ export async function uploadDefaultProductImage(
   const form = new FormData();
   form.append('file', file);
   return postMultipart<MerchantShopDto>('/api/v1/merchant/shop/default-product-image', form);
+}
+
+/**
+ * Uploads a card-to-card payment receipt image for a customer's storefront order.
+ */
+export async function uploadOrderReceipt(
+  shopSlug: string,
+  orderId: string,
+  file: File,
+): Promise<UploadResult<OrderDetailDto>> {
+  const form = new FormData();
+  form.append('file', file);
+  return postMultipart<OrderDetailDto>(
+    `/api/v1/storefront/${encodeURIComponent(shopSlug)}/orders/${encodeURIComponent(orderId)}/receipt`,
+    form,
+  );
 }

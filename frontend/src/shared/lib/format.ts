@@ -46,6 +46,22 @@ export function formatNumber(
   return new Intl.NumberFormat(locale, options).format(numeric);
 }
 
+/**
+ * Formats a human-friendly sequential order number (e.g. `۱۰۰۱` / `1001`) without
+ * thousands separators, falling back to an 8-character uppercase GUID prefix.
+ */
+export function formatOrderCode(
+  orderId: string,
+  orderNumber: number | string | null | undefined,
+  language: string,
+): string {
+  const num = toNumber(orderNumber, 0);
+  if (num > 0) {
+    return formatNumber(num, language, { useGrouping: false });
+  }
+  return orderId.slice(0, 8).toUpperCase();
+}
+
 export function getCurrencyUnit(currency: string, language: string): string {
   const code = (currency || 'IRT').toUpperCase();
   const isFa = language.startsWith('fa');
@@ -118,6 +134,77 @@ export function formatDate(isoDate: string, language: string): string {
     month: 'short',
     day: 'numeric',
   }).format(date);
+}
+
+export function formatDateTime(isoDate: string, language: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) {
+    return isoDate;
+  }
+  const locale = language.startsWith('fa') ? 'fa-IR-u-ca-persian' : 'en-US';
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+export function formatCardNumberDisplay(raw: string | null | undefined): string {
+  if (!raw) {
+    return '';
+  }
+  const digits = toLatinDigits(raw).replace(/\D/g, '');
+  if (digits.length === 16) {
+    return `${digits.slice(0, 4)}-${digits.slice(4, 8)}-${digits.slice(8, 12)}-${digits.slice(12, 16)}`;
+  }
+  return raw.trim();
+}
+
+export function formatRemainingTime(
+  expiresAtIso: string,
+  nowMs: number,
+  language: string,
+): { expired: boolean; text: string } {
+  const targetMs = new Date(expiresAtIso).getTime();
+  if (Number.isNaN(targetMs)) {
+    return { expired: true, text: '00:00' };
+  }
+  const diffSeconds = Math.floor((targetMs - nowMs) / 1000);
+  if (diffSeconds <= 0) {
+    return { expired: true, text: language.startsWith('fa') ? '۰۰:۰۰' : '00:00' };
+  }
+
+  const hours = Math.floor(diffSeconds / 3600);
+  const minutes = Math.floor((diffSeconds % 3600) / 60);
+  const seconds = diffSeconds % 60;
+  const pad = (n: number) =>
+    formatNumber(n, language, { minimumIntegerDigits: 2, useGrouping: false });
+
+  const text =
+    hours > 0 ? `${pad(hours)}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+  return { expired: false, text };
+}
+
+export function computeEffectiveShippingCost(
+  method: {
+    price: number | string;
+    freeAboveAmount?: number | string | null;
+    isPayAtDestination: boolean;
+  },
+  subtotal: number,
+): number {
+  if (method.isPayAtDestination) {
+    return 0;
+  }
+  if (method.freeAboveAmount !== null && method.freeAboveAmount !== undefined) {
+    const threshold = toNumber(method.freeAboveAmount, -1);
+    if (threshold >= 0 && subtotal >= threshold) {
+      return 0;
+    }
+  }
+  return toNumber(method.price, 0);
 }
 
 /**
