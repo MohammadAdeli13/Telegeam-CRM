@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Eye, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Check, Copy, Eye, RefreshCw, ShoppingBag } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/features/auth/auth-context';
 import { apiClient, extractProblemCode, extractProblemMessage } from '@/shared/api/client';
 import { cn } from '@/shared/lib/cn';
-import { formatDate, formatMoney, toNumber } from '@/shared/lib/format';
+import { formatDate, formatMoney, formatNumber, toNumber } from '@/shared/lib/format';
 import { normalizeLanguage } from '@/shared/lib/i18n';
+import { copyTextToClipboard, triggerHaptic } from '@/shared/lib/telegram';
 import { Button } from '@/shared/ui/button';
 import { Card } from '@/shared/ui/card';
 import { ModalDialog } from '@/shared/ui/dialog';
@@ -21,11 +22,14 @@ export function MerchantOrdersPage() {
   const { t, i18n } = useTranslation();
   const { session } = useAuth();
   const lang = normalizeLanguage(i18n.language);
-  const tenantKey = session?.activeTenant?.id ?? 'none';
+  const activeShop = session?.activeTenant;
+  const tenantKey = activeShop?.id ?? 'none';
+  const currency = activeShop?.currency ?? 'IRT';
 
   const [statusFilter, setStatusFilter] = useState<OrderStatusValue | undefined>(undefined);
   const [page, setPage] = useState(1);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const ordersQuery = useQuery({
     queryKey: ['merchant', tenantKey, 'orders', page, statusFilter ?? 'all'],
@@ -46,6 +50,18 @@ export function MerchantOrdersPage() {
     },
   });
 
+  const handleCopyStorefrontLink = async () => {
+    if (!activeShop) {
+      return;
+    }
+    const ok = await copyTextToClipboard(`${window.location.origin}/s/${activeShop.slug}`);
+    if (ok) {
+      triggerHaptic('success');
+      setCopiedLink(true);
+      window.setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -61,18 +77,23 @@ export function MerchantOrdersPage() {
         </Button>
       </div>
 
-      {/* Status filter pills */}
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label={t('common.status')}>
+      {/* Horizontal scrollable single-row status filter pills on mobile */}
+      <div
+        className="no-scrollbar flex flex-nowrap gap-2 overflow-x-auto pb-1 lg:flex-wrap"
+        role="tablist"
+        aria-label={t('common.status')}
+      >
         <button
           type="button"
           role="tab"
           aria-selected={!statusFilter}
           onClick={() => {
+            triggerHaptic('selection');
             setStatusFilter(undefined);
             setPage(1);
           }}
           className={cn(
-            'min-h-10 cursor-pointer rounded-full border px-3 text-xs font-medium transition-colors',
+            'min-h-11 shrink-0 cursor-pointer rounded-full border px-3.5 text-xs font-medium transition-colors',
             !statusFilter
               ? 'border-primary bg-primary text-primary-foreground'
               : 'border-border bg-surface text-foreground hover:bg-surface-elevated',
@@ -89,11 +110,12 @@ export function MerchantOrdersPage() {
               role="tab"
               aria-selected={active}
               onClick={() => {
+                triggerHaptic('selection');
                 setStatusFilter(st);
                 setPage(1);
               }}
               className={cn(
-                'min-h-10 cursor-pointer rounded-full border px-3 text-xs font-medium transition-colors',
+                'min-h-11 shrink-0 cursor-pointer rounded-full border px-3.5 text-xs font-medium transition-colors',
                 active
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border bg-surface text-foreground hover:bg-surface-elevated',
@@ -110,7 +132,28 @@ export function MerchantOrdersPage() {
       ) : ordersQuery.isError ? (
         <ErrorState onRetry={() => void ordersQuery.refetch()} />
       ) : !ordersQuery.data || ordersQuery.data.items.length === 0 ? (
-        <EmptyState description={t('orders.empty')} />
+        <EmptyState
+          icon={<ShoppingBag className="size-6" aria-hidden="true" />}
+          title={statusFilter ? t('app.emptyTitle') : t('orders.emptyAll')}
+          description={statusFilter ? t('orders.empty') : t('orders.emptyAllHint')}
+          action={
+            !statusFilter && activeShop ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void handleCopyStorefrontLink()}
+              >
+                {copiedLink ? (
+                  <Check className="size-4 text-success" aria-hidden="true" />
+                ) : (
+                  <Copy className="size-4" aria-hidden="true" />
+                )}
+                <span>{copiedLink ? t('merchant.linkCopied') : t('merchant.copyShopLink')}</span>
+              </Button>
+            ) : null
+          }
+        />
       ) : (
         <>
           <div className="space-y-2.5">
@@ -119,7 +162,7 @@ export function MerchantOrdersPage() {
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="tabular-nums text-sm font-bold text-foreground" dir="ltr">
-                      #{order.id.slice(0, 8)}
+                      #{order.id.slice(0, 8).toUpperCase()}
                     </span>
                     <OrderStatusBadge status={order.status} />
                   </div>
@@ -134,7 +177,7 @@ export function MerchantOrdersPage() {
 
                 <div className="flex items-center gap-3">
                   <span className="tabular-nums text-sm font-bold text-primary">
-                    {formatMoney(order.totalAmount, 'IRR', lang)}
+                    {formatMoney(order.totalAmount, currency, lang)}
                   </span>
                   <Button
                     type="button"
@@ -162,6 +205,7 @@ export function MerchantOrdersPage() {
       {selectedOrderId ? (
         <OrderDetailModal
           tenantKey={tenantKey}
+          currency={currency}
           orderId={selectedOrderId}
           onClose={() => setSelectedOrderId(null)}
         />
@@ -172,10 +216,12 @@ export function MerchantOrdersPage() {
 
 function OrderDetailModal({
   tenantKey,
+  currency,
   orderId,
   onClose,
 }: {
   tenantKey: string;
+  currency: string;
   orderId: string;
   onClose: () => void;
 }) {
@@ -217,6 +263,7 @@ function OrderDetailModal({
       return data;
     },
     onSuccess: () => {
+      triggerHaptic('success');
       setReason('');
       setConfirmCancel(false);
       setErrorMsg(null);
@@ -224,11 +271,14 @@ function OrderDetailModal({
         queryKey: ['merchant', tenantKey, 'order-detail', orderId],
       });
       void queryClient.invalidateQueries({ queryKey: ['merchant', tenantKey, 'orders'] });
-      void queryClient.invalidateQueries({ queryKey: ['merchant', tenantKey, 'kpi-pending-orders'] });
+      void queryClient.invalidateQueries({
+        queryKey: ['merchant', tenantKey, 'kpi-pending-orders'],
+      });
       void queryClient.invalidateQueries({ queryKey: ['merchant', tenantKey, 'recent-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['merchant', tenantKey, 'products'] });
     },
     onError: (err) => {
+      triggerHaptic('error');
       const code = extractProblemCode(err);
       setErrorMsg(
         code === 'concurrency_conflict'
@@ -244,7 +294,7 @@ function OrderDetailModal({
   return (
     <ModalDialog
       open
-      title={t('orders.orderNumber', { id: orderId.slice(0, 8) })}
+      title={t('orders.orderNumber', { id: orderId.slice(0, 8).toUpperCase() })}
       onClose={onClose}
     >
       {detailQuery.isLoading ? (
@@ -266,7 +316,7 @@ function OrderDetailModal({
             <div className="flex flex-col items-end gap-1.5">
               <OrderStatusBadge status={order.status} />
               <span className="tabular-nums text-base font-bold text-primary">
-                {formatMoney(order.totalAmount, 'IRR', lang)}
+                {formatMoney(order.totalAmount, currency, lang)}
               </span>
             </div>
           </div>
@@ -289,12 +339,12 @@ function OrderDetailModal({
                       {item.productNameSnapshot}
                     </p>
                     <p className="tabular-nums text-xs text-muted-foreground">
-                      {t('orders.quantity', { count: toNumber(item.quantity) })} ×{' '}
-                      {formatMoney(item.unitPrice, 'IRR', lang)}
+                      {t('orders.quantity', { count: formatNumber(toNumber(item.quantity), lang) })}{' '}
+                      × {formatMoney(item.unitPrice, currency, lang)}
                     </p>
                   </div>
                   <span className="tabular-nums shrink-0 font-semibold text-foreground">
-                    {formatMoney(item.lineTotal, 'IRR', lang)}
+                    {formatMoney(item.lineTotal, currency, lang)}
                   </span>
                 </div>
               ))}
@@ -303,7 +353,9 @@ function OrderDetailModal({
 
           {/* Transition controls */}
           <div className="space-y-3 rounded-lg border border-border bg-background p-3">
-            <h3 className="text-sm font-semibold text-foreground">{t('orders.transitionTitle')}</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              {t('orders.transitionTitle')}
+            </h3>
             {nextStatuses.length === 0 ? (
               <p className="text-xs text-muted-foreground">{t('orders.terminalHint')}</p>
             ) : (
@@ -358,6 +410,7 @@ function OrderDetailModal({
                           disabled={transitionMutation.isPending}
                           onClick={() => {
                             if (isCancel) {
+                              triggerHaptic('warning');
                               setConfirmCancel(true);
                             } else {
                               transitionMutation.mutate(target);
@@ -384,27 +437,37 @@ function OrderDetailModal({
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-foreground">{t('orders.timelineTitle')}</h3>
             <ol className="space-y-2">
-              {order.statusHistory.map((entry) => (
-                <li
-                  key={entry.id}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-xs"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <OrderStatusBadge status={entry.toStatus} />
-                      {entry.actorRole ? (
-                        <span className="text-muted-foreground">({entry.actorRole})</span>
-                      ) : null}
+              {order.statusHistory.map((entry) => {
+                const roleLabel = entry.actorRole
+                  ? t(`roles.${entry.actorRole}`, { defaultValue: entry.actorRole })
+                  : null;
+                const noteText =
+                  entry.reason && entry.reason !== 'Order placed.'
+                    ? entry.reason
+                    : entry.fromStatus === null
+                      ? t('orders.orderPlacedEvent')
+                      : null;
+
+                return (
+                  <li
+                    key={entry.id}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-xs"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <OrderStatusBadge status={entry.toStatus} />
+                        {roleLabel ? (
+                          <span className="text-muted-foreground">({roleLabel})</span>
+                        ) : null}
+                      </div>
+                      <span className="tabular-nums text-muted-foreground">
+                        {formatDate(entry.occurredAt, lang)}
+                      </span>
                     </div>
-                    <span className="tabular-nums text-muted-foreground">
-                      {formatDate(entry.occurredAt, lang)}
-                    </span>
-                  </div>
-                  {entry.reason ? (
-                    <p className="mt-1 text-foreground">{entry.reason}</p>
-                  ) : null}
-                </li>
-              ))}
+                    {noteText ? <p className="mt-1 text-foreground">{noteText}</p> : null}
+                  </li>
+                );
+              })}
             </ol>
           </div>
         </div>

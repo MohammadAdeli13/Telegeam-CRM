@@ -1,15 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Store } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, ArrowRight, Store } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { z } from 'zod';
 import { apiClient, extractProblemCode, extractProblemMessage } from '@/shared/api/client';
+import { getDirection, normalizeLanguage } from '@/shared/lib/i18n';
+import { pushTelegramBackButton, triggerHaptic } from '@/shared/lib/telegram';
 import { Button } from '@/shared/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
+import { Select } from '@/shared/ui/select';
 import { ToolbarControls } from '@/shared/ui/toolbar-controls';
 import { useAuth } from './auth-context';
 
@@ -21,19 +24,33 @@ const onboardingSchema = z.object({
     .toLowerCase()
     .regex(/^[a-z0-9-]{3,40}$/),
   defaultLanguage: z.enum(['fa', 'en']),
-  currency: z.enum(['IRR', 'USD', 'EUR']),
+  currency: z.enum(['IRT', 'IRR', 'USD', 'EUR']),
 });
 
 type OnboardingValues = z.infer<typeof onboardingSchema>;
 
 export function OnboardingPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { refreshSessionAfterShopCreated } = useAuth();
+  const { session, refreshSessionAfterShopCreated } = useAuth();
   const [serverError, setServerError] = useState<string | null>(null);
+
+  const lang = normalizeLanguage(i18n.language);
+  const BackIcon = getDirection(lang) === 'rtl' ? ArrowRight : ArrowLeft;
+  const canGoBack = Boolean(session && session.tenants.length > 0);
+
+  useEffect(() => {
+    if (!canGoBack) {
+      return;
+    }
+    return pushTelegramBackButton(() => {
+      void navigate('/auth');
+    });
+  }, [canGoBack, navigate]);
 
   const {
     register,
+    watch,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<OnboardingValues>({
@@ -42,9 +59,11 @@ export function OnboardingPage() {
       name: '',
       slug: '',
       defaultLanguage: 'fa',
-      currency: 'IRR',
+      currency: 'IRT',
     },
   });
+
+  const slugPreview = watch('slug')?.trim().toLowerCase() || 'noor-gallery';
 
   const onSubmit = async (values: OnboardingValues) => {
     setServerError(null);
@@ -58,6 +77,7 @@ export function OnboardingPage() {
     });
 
     if (error || !data) {
+      triggerHaptic('error');
       const code = extractProblemCode(error);
       setServerError(
         code === 'slug_taken'
@@ -67,6 +87,7 @@ export function OnboardingPage() {
       return;
     }
 
+    triggerHaptic('success');
     const updated = await refreshSessionAfterShopCreated(data.id);
     if (updated?.activeTenant) {
       void navigate('/merchant', { replace: true });
@@ -76,11 +97,19 @@ export function OnboardingPage() {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 py-4">
       <header className="mb-6 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <Store className="size-5" aria-hidden="true" />
-          </div>
-          <h1 className="text-base font-bold text-foreground">{t('app.name')}</h1>
+        <div className="flex min-w-0 items-center gap-2.5">
+          {canGoBack ? (
+            <Button asChild variant="ghost" size="icon" aria-label={t('onboarding.backToShops')}>
+              <Link to="/auth">
+                <BackIcon className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          ) : (
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Store className="size-5" aria-hidden="true" />
+            </div>
+          )}
+          <h1 className="truncate text-base font-bold text-foreground">{t('app.name')}</h1>
         </div>
         <ToolbarControls />
       </header>
@@ -125,32 +154,28 @@ export function OnboardingPage() {
               >
                 {errors.slug ? t('onboarding.validationSlug') : t('onboarding.slugHelper')}
               </p>
+              <p className="truncate text-xs text-primary/90" dir="ltr">
+                {`${window.location.origin}/s/${slugPreview}`}
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="shop-lang">{t('onboarding.languageLabel')}</Label>
-                <select
-                  id="shop-lang"
-                  className="flex min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                  {...register('defaultLanguage')}
-                >
+                <Select id="shop-lang" {...register('defaultLanguage')}>
                   <option value="fa">{t('app.persian')}</option>
                   <option value="en">{t('app.english')}</option>
-                </select>
+                </Select>
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="shop-currency">{t('onboarding.currencyLabel')}</Label>
-                <select
-                  id="shop-currency"
-                  className="flex min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                  {...register('currency')}
-                >
-                  <option value="IRR">IRR</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                </select>
+                <Select id="shop-currency" {...register('currency')}>
+                  <option value="IRT">{t('currencies.IRT')}</option>
+                  <option value="IRR">{t('currencies.IRR')}</option>
+                  <option value="USD">{t('currencies.USD')}</option>
+                  <option value="EUR">{t('currencies.EUR')}</option>
+                </Select>
               </div>
             </div>
 
