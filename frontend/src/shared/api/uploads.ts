@@ -2,10 +2,45 @@ import type { components } from '@/types/api';
 import { getAccessToken } from './session';
 
 type ProductImageDto = components['schemas']['ProductImageDto'];
+type MerchantShopDto = components['schemas']['MerchantShopDto'];
+type OrderDetailDto = components['schemas']['OrderDetailDto'];
 
-export interface UploadResult {
-  data?: ProductImageDto;
-  error?: { code?: string; detail?: string; title?: string; status?: number };
+export interface UploadProblem {
+  code?: string;
+  detail?: string;
+  title?: string;
+  status?: number;
+}
+
+export interface UploadResult<T = ProductImageDto> {
+  data?: T;
+  error?: UploadProblem;
+}
+
+async function postMultipart<T>(url: string, form: FormData): Promise<UploadResult<T>> {
+  const headers = new Headers();
+  const token = getAccessToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: form,
+  });
+
+  if (response.ok) {
+    const data = (await response.json()) as T;
+    return { data };
+  }
+
+  try {
+    const problem = (await response.json()) as UploadProblem;
+    return { error: problem };
+  } catch {
+    return { error: { status: response.status, title: response.statusText } };
+  }
 }
 
 /**
@@ -15,39 +50,51 @@ export async function uploadProductImage(
   productId: string,
   file: File,
   altText?: string,
-): Promise<UploadResult> {
+): Promise<UploadResult<ProductImageDto>> {
   const form = new FormData();
   form.append('file', file);
   if (altText && altText.trim().length > 0) {
     form.append('altText', altText.trim());
   }
 
-  const headers = new Headers();
-  const token = getAccessToken();
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
+  return postMultipart<ProductImageDto>(
+    `/api/v1/merchant/products/${encodeURIComponent(productId)}/images`,
+    form,
+  );
+}
 
-  const response = await fetch(`/api/v1/merchant/products/${encodeURIComponent(productId)}/images`, {
-    method: 'POST',
-    headers,
-    body: form,
-  });
+/**
+ * Uploads or replaces the active shop logo via POST /api/v1/merchant/shop/logo.
+ */
+export async function uploadShopLogo(file: File): Promise<UploadResult<MerchantShopDto>> {
+  const form = new FormData();
+  form.append('file', file);
+  return postMultipart<MerchantShopDto>('/api/v1/merchant/shop/logo', form);
+}
 
-  if (response.ok) {
-    const data = (await response.json()) as ProductImageDto;
-    return { data };
-  }
+/**
+ * Uploads or replaces the active shop's default product placeholder image.
+ */
+export async function uploadDefaultProductImage(
+  file: File,
+): Promise<UploadResult<MerchantShopDto>> {
+  const form = new FormData();
+  form.append('file', file);
+  return postMultipart<MerchantShopDto>('/api/v1/merchant/shop/default-product-image', form);
+}
 
-  try {
-    const problem = (await response.json()) as {
-      code?: string;
-      detail?: string;
-      title?: string;
-      status?: number;
-    };
-    return { error: problem };
-  } catch {
-    return { error: { status: response.status, title: response.statusText } };
-  }
+/**
+ * Uploads a card-to-card payment receipt image for a customer's storefront order.
+ */
+export async function uploadOrderReceipt(
+  shopSlug: string,
+  orderId: string,
+  file: File,
+): Promise<UploadResult<OrderDetailDto>> {
+  const form = new FormData();
+  form.append('file', file);
+  return postMultipart<OrderDetailDto>(
+    `/api/v1/storefront/${encodeURIComponent(shopSlug)}/orders/${encodeURIComponent(orderId)}/receipt`,
+    form,
+  );
 }

@@ -113,7 +113,7 @@ public sealed partial class ExceptionHandlingMiddleware
 
     private static int StatusFor(string code) => code switch
     {
-        "idempotency_key_required" or "invalid_status_filter" or "invalid_status"
+        "idempotency_key_required" or "invalid_status_filter" or "invalid_status" or "invalid_payment_method"
             => StatusCodes.Status400BadRequest,
 
         "init_data_missing" or "init_data_malformed" or "init_data_hash_missing" or
@@ -128,11 +128,13 @@ public sealed partial class ExceptionHandlingMiddleware
 
         "slug_taken" or "invalid_status_transition" or "concurrency_conflict" or "insufficient_stock"
             or "category_in_use" or "product_in_use" or "customer_exists" or "tag_exists"
+            or "payment_not_reviewable" or "receipt_upload_not_allowed"
             => StatusCodes.Status409Conflict,
 
         "unsupported_media_type" => StatusCodes.Status415UnsupportedMediaType,
 
         "empty_file" or "file_too_large" or "invalid_alt_text" or "product_not_available"
+            or "card_number_required" or "shipping_method_not_found" or "payment_method_not_enabled"
             => StatusCodes.Status422UnprocessableEntity,
 
         _ => StatusCodes.Status422UnprocessableEntity,

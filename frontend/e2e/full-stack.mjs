@@ -76,8 +76,9 @@ async function run() {
   assert.equal(badWebhook.response.status, 401);
 
   // 3. Seed a merchant shop, category, product, and real PNG image through the live API
-  const merchantUser = { id: 501001, first_name: 'Noor', last_name: 'Merchant', language_code: 'fa' };
-  const customerUser = { id: 502002, first_name: 'Sara', last_name: 'Buyer', language_code: 'fa' };
+  const runUid = 500000 + Math.floor(Math.random() * 400000);
+  const merchantUser = { id: runUid, first_name: 'Noor', last_name: 'Merchant', language_code: 'fa' };
+  const customerUser = { id: runUid + 1, first_name: 'Sara', last_name: 'Buyer', language_code: 'fa' };
   const merchantInitData = buildSignedInitData(merchantUser);
   const customerInitData = buildSignedInitData(customerUser);
 
@@ -171,7 +172,7 @@ async function run() {
   console.log(`[E2E] 2/6 Seeded shop /s/${shopSlug} & verified image serving via Nginx.`);
 
   // 4. Launch real Chromium browser on mobile viewport (390x844)
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ ...(process.env.E2E_BROWSER_CHANNEL ? { channel: process.env.E2E_BROWSER_CHANNEL } : {}), headless: process.env.E2E_HEADED !== '1' });
   const pageErrors = [];
   const sameOriginConsoleErrors = [];
 
@@ -180,7 +181,7 @@ async function run() {
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
         const text = msg.text();
-        if (!text.includes('fonts.googleapis.com') && !text.includes('fonts.gstatic.com')) {
+        if (!text.includes('fonts.googleapis.com') && !text.includes('fonts.gstatic.com') && !text.includes('cloudflareinsights.com')) {
           sameOriginConsoleErrors.push(text);
         }
       }
@@ -298,9 +299,10 @@ async function run() {
     await merchantPage.getByRole('button', { name: 'جزئیات' }).first().waitFor({ timeout: 10000 });
     await merchantPage.getByRole('button', { name: 'جزئیات' }).first().click();
 
-    await merchantPage.getByRole('button', { name: 'تغییر به «تأیید شده»' }).waitFor({ timeout: 10000 });
-    await merchantPage.getByRole('button', { name: 'تغییر به «تأیید شده»' }).click();
     await merchantPage.getByText('تأیید شده').first().waitFor({ timeout: 10000 });
+    await merchantPage.getByRole('button', { name: 'تغییر به «در حال آماده‌سازی»' }).waitFor({ timeout: 10000 });
+    await merchantPage.getByRole('button', { name: 'تغییر به «در حال آماده‌سازی»' }).click();
+    await merchantPage.getByText('در حال آماده‌سازی').first().waitFor({ timeout: 10000 });
 
     const merchantLocalStorage = await merchantPage.evaluate(() => window.localStorage.length);
     assert.equal(merchantLocalStorage, 0, 'Merchant panel must not write to localStorage');

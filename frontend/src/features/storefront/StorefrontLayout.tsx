@@ -5,6 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import { apiClient } from '@/shared/api/client';
 import { cn } from '@/shared/lib/cn';
+import { formatNumber } from '@/shared/lib/format';
+import {
+  hasExplicitLanguagePreference,
+  normalizeLanguage,
+  setAppLanguage,
+} from '@/shared/lib/i18n';
 import { syncTelegramBackButton } from '@/shared/lib/telegram';
 import { Button } from '@/shared/ui/button';
 import { ErrorState, LoadingState } from '@/shared/ui/state-views';
@@ -22,10 +28,11 @@ export function StorefrontLayout() {
 }
 
 function StorefrontShell({ shopSlug }: { shopSlug: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { totalCount } = useStorefrontCart();
+  const lang = normalizeLanguage(i18n.language);
 
   const shopQuery = useQuery({
     queryKey: ['storefront-shop', shopSlug],
@@ -44,18 +51,24 @@ function StorefrontShell({ shopSlug }: { shopSlug: string }) {
     },
   });
 
-  const isDetailSubroute =
-    location.pathname.includes(`/s/${shopSlug}/products/`) ||
-    location.pathname.includes(`/s/${shopSlug}/orders/`);
+  useEffect(() => {
+    const defaultLang = shopQuery.data?.defaultLanguage;
+    if (defaultLang && !hasExplicitLanguagePreference()) {
+      setAppLanguage(normalizeLanguage(defaultLang), { explicit: false });
+    }
+  }, [shopQuery.data?.defaultLanguage]);
+
+  const isOrderDetail = location.pathname.includes(`/s/${shopSlug}/orders/`);
+  const isProductDetail = location.pathname.includes(`/s/${shopSlug}/products/`);
+  const isCart = location.pathname === `/s/${shopSlug}/cart`;
+  const showBack = isOrderDetail || isProductDetail || isCart;
 
   useEffect(() => {
-    const target = location.pathname.includes(`/s/${shopSlug}/orders/`)
-      ? `/s/${shopSlug}/orders`
-      : `/s/${shopSlug}`;
-    return syncTelegramBackButton(isDetailSubroute, () => {
+    const target = isOrderDetail ? `/s/${shopSlug}/orders` : `/s/${shopSlug}`;
+    return syncTelegramBackButton(showBack, () => {
       void navigate(target);
     });
-  }, [isDetailSubroute, location.pathname, navigate, shopSlug]);
+  }, [isOrderDetail, navigate, shopSlug, showBack]);
 
   const navItems = [
     { to: `/s/${shopSlug}`, end: true, key: 'storefront.nav.shop', icon: Store, badge: 0 },
@@ -66,8 +79,18 @@ function StorefrontShell({ shopSlug }: { shopSlug: string }) {
       icon: ShoppingCart,
       badge: totalCount,
     },
-    { to: `/s/${shopSlug}/orders`, end: false, key: 'storefront.nav.orders', icon: ShoppingBag, badge: 0 },
+    {
+      to: `/s/${shopSlug}/orders`,
+      end: false,
+      key: 'storefront.nav.orders',
+      icon: ShoppingBag,
+      badge: 0,
+    },
   ] as const;
+
+  const shop = shopQuery.data;
+  const formatBadge = (count: number) =>
+    count > 99 ? `${formatNumber(99, lang)}+` : formatNumber(count, lang);
 
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
@@ -78,53 +101,95 @@ function StorefrontShell({ shopSlug }: { shopSlug: string }) {
         {t('app.skipToContent')}
       </a>
 
-      <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-2.5">
-          <Link to={`/s/${shopSlug}`} className="flex min-w-0 items-center gap-2.5">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-              <Store className="size-4" aria-hidden="true" />
+      <header className="safe-top sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
+          <Link
+            to={shop ? `/s/${shopSlug}` : '/auth'}
+            className="flex min-w-0 items-center gap-2.5"
+          >
+            <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/15 text-primary">
+              {shop?.logoUrl ? (
+                <img
+                  src={shop.logoUrl}
+                  alt={shop.name}
+                  className="size-full object-cover"
+                />
+              ) : (
+                <Store className="size-5" aria-hidden="true" />
+              )}
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-bold text-foreground">
-                {shopQuery.data?.name ?? shopSlug}
-              </p>
-              <p className="truncate text-xs text-muted-foreground" dir="ltr">
-                /{shopSlug}
+                {shop ? shop.name : t('app.name')}
               </p>
             </div>
           </Link>
-          <ToolbarControls />
+
+          {/* Desktop header navigation */}
+          {shop ? (
+            <nav
+              aria-label="Storefront desktop navigation"
+              className="hidden items-center gap-1 lg:flex"
+            >
+              {navItems.map(({ to, end, key, icon: Icon, badge }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={end}
+                  className={({ isActive }) =>
+                    cn(
+                      'inline-flex min-h-11 items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-primary/15 text-primary'
+                        : 'text-muted-foreground hover:bg-surface-elevated hover:text-foreground',
+                    )
+                  }
+                >
+                  <Icon className="size-4" aria-hidden="true" />
+                  <span>{t(key)}</span>
+                  {badge > 0 ? (
+                    <span className="tabular-nums inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[11px] font-bold text-primary-foreground">
+                      {formatBadge(badge)}
+                    </span>
+                  ) : null}
+                </NavLink>
+              ))}
+            </nav>
+          ) : null}
+
+          <div className="shrink-0">
+            <ToolbarControls />
+          </div>
         </div>
       </header>
 
-      <main id="main-content" className="mx-auto w-full max-w-3xl flex-1 px-4 pt-4 pb-24">
+      <main id="main-content" className="mx-auto w-full max-w-6xl flex-1 px-4 pt-4 pb-28 lg:pb-10">
         {shopQuery.isLoading ? (
           <LoadingState rows={3} />
         ) : shopQuery.isError ? (
           <ErrorState onRetry={() => void shopQuery.refetch()} />
-        ) : shopQuery.data === null ? (
-          <ErrorState
-            title={t('storefront.shopNotFoundTitle')}
-            message={t('storefront.shopNotFoundDesc')}
-            onRetry={() => void shopQuery.refetch()}
-          />
-        ) : (
-          <Outlet context={shopQuery.data} />
-        )}
-
-        {shopQuery.data === null ? (
-          <div className="mt-4 flex justify-center">
-            <Button asChild variant="outline">
-              <Link to="/auth">{t('storefront.backHome')}</Link>
-            </Button>
+        ) : shop === null ? (
+          <div className="mx-auto max-w-lg py-6">
+            <ErrorState
+              title={t('storefront.shopNotFoundTitle')}
+              message={t('storefront.shopNotFoundDesc')}
+              action={
+                <Button asChild>
+                  <Link to="/auth">{t('storefront.backHome')}</Link>
+                </Button>
+              }
+            />
           </div>
+        ) : shop ? (
+          <Outlet context={shop} />
         ) : null}
       </main>
 
-      {shopQuery.data ? (
+      {/* Mobile bottom tab bar */}
+      {shop ? (
         <nav
           aria-label="Storefront navigation"
-          className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur-sm"
+          className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur-sm lg:hidden"
         >
           <ul className="mx-auto grid max-w-3xl grid-cols-3">
             {navItems.map(({ to, end, key, icon: Icon, badge }) => (
@@ -143,7 +208,7 @@ function StorefrontShell({ shopSlug }: { shopSlug: string }) {
                     <Icon className="size-5" aria-hidden="true" />
                     {badge > 0 ? (
                       <span className="tabular-nums absolute -top-1.5 -end-2.5 flex min-w-4.5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-                        {badge > 99 ? '99+' : badge}
+                        {formatBadge(badge)}
                       </span>
                     ) : null}
                   </span>

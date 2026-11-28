@@ -1,4 +1,5 @@
 using FluentValidation;
+using TelegramCrm.Application.Common;
 
 namespace TelegramCrm.Application.Merchants;
 
@@ -21,7 +22,7 @@ public sealed class CreateMerchantRequestValidator : AbstractValidator<CreateMer
             .WithMessage("DefaultLanguage must be 'fa' or 'en'.");
 
         RuleFor(x => x.Currency)
-            .Must(v => v is null || (v.Length == 3 && v.All(char.IsAsciiLetterUpper)))
-            .WithMessage("Currency must be a 3-letter ISO 4217 code.");
+            .Must(v => v is null || ShopCurrencies.IsSupported(v))
+            .WithMessage("Currency must be one of: IRT, IRR, USD, EUR.");
     }
 }

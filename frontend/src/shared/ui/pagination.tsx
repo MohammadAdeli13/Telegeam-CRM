@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { formatNumber } from '@/shared/lib/format';
 import { getDirection, normalizeLanguage } from '@/shared/lib/i18n';
 import { Button } from './button';
 
@@ -20,7 +21,8 @@ export function Pagination({
     return null;
   }
 
-  const isRtl = getDirection(normalizeLanguage(i18n.language)) === 'rtl';
+  const lang = normalizeLanguage(i18n.language);
+  const isRtl = getDirection(lang) === 'rtl';
   const PrevIcon = isRtl ? ChevronRight : ChevronLeft;
   const NextIcon = isRtl ? ChevronLeft : ChevronRight;
 
@@ -37,7 +39,10 @@ export function Pagination({
         <span>{t('common.previous')}</span>
       </Button>
       <span className="tabular-nums text-xs font-medium text-muted-foreground">
-        {t('common.pageOf', { page, total: totalPages })}
+        {t('common.pageOf', {
+          page: formatNumber(page, lang),
+          total: formatNumber(totalPages, lang),
+        })}
       </span>
       <Button
         type="button"

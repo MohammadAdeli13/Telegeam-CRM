@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TelegramCrm.Application.Abstractions;
 using TelegramCrm.Application.Common;
 using TelegramCrm.Domain.Entities;
 using TelegramCrm.Domain.Exceptions;
@@ -15,17 +16,20 @@ public sealed class AuthService
     private readonly TelegramInitDataValidator _validator;
     private readonly IJwtTokenService _tokens;
     private readonly IClock _clock;
+    private readonly IFileStorageService _storage;
 
     public AuthService(
         IAppDbContext db,
         TelegramInitDataValidator validator,
         IJwtTokenService tokens,
-        IClock clock)
+        IClock clock,
+        IFileStorageService storage)
     {
         _db = db;
         _validator = validator;
         _tokens = tokens;
         _clock = clock;
+        _storage = storage;
     }
 
     /// <summary>
@@ -64,6 +68,7 @@ public sealed class AuthService
             _db.Users.Add(user);
         }
 
+        user.Username = TelegramUsernameHelper.Normalize(telegramUser.Username);
         user.FirstName = telegramUser.FirstName;
         user.LastName = telegramUser.LastName;
         user.LanguageCode = telegramUser.LanguageCode;
@@ -105,22 +110,30 @@ public sealed class AuthService
         // TenantMember is tenant-scoped, so the global filter would hide every row here.
         // This is the one legitimate cross-tenant read: it is scoped to the caller's own
         // user id and only ever returns shops that user is a member of.
-        return await _db.TenantMembers
+        var rows = await _db.TenantMembers
             .IgnoreQueryFilters()
+            .AsNoTracking()
             .Where(m => m.UserId == userId)
             .Join(
-                _db.Tenants.IgnoreQueryFilters(),
+                _db.Tenants.IgnoreQueryFilters().AsNoTracking(),
                 m => m.TenantId,
                 t => t.Id,
                 (m, t) => new { Member = m, Tenant = t })
             .OrderBy(x => x.Tenant.Name)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return rows
             .Select(x => new TenantSummary(
                 x.Tenant.Id,
                 x.Tenant.Slug,
                 x.Tenant.Name,
-                x.Member.Role.ToString()))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+                x.Member.Role.ToString(),
+                x.Tenant.DefaultLanguage,
+                x.Tenant.Currency,
+                ToPublicUrl(x.Tenant.LogoStoragePath),
+                ToPublicUrl(x.Tenant.DefaultProductImageStoragePath)))
+            .ToList();
     }
 
     private AuthResponse BuildResponse(User user, List<TenantSummary> memberships, TenantSummary? activeTenant)
@@ -136,8 +149,17 @@ public sealed class AuthService
         return new AuthResponse(
             token,
             expiresAt,
-            new AuthUserDto(user.Id, user.TelegramUserId, user.FirstName, user.LastName, user.LanguageCode),
+            new AuthUserDto(
+                user.Id,
+                user.TelegramUserId,
+                user.Username,
+                user.FirstName,
+                user.LastName,
+                user.LanguageCode),
             memberships,
             activeTenant);
     }
+
+    private string? ToPublicUrl(string? storagePath) =>
+        string.IsNullOrWhiteSpace(storagePath) ? null : _storage.GetPublicUrl(storagePath);
 }

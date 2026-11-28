@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TelegramCrm.Application.Abstractions;
 using TelegramCrm.Application.Common;
 using TelegramCrm.Domain.Entities;
 using TelegramCrm.Domain.Enums;
@@ -14,11 +15,13 @@ public sealed class MerchantService
 {
     private readonly IAppDbContext _db;
     private readonly IClock _clock;
+    private readonly IFileStorageService _storage;
 
-    public MerchantService(IAppDbContext db, IClock clock)
+    public MerchantService(IAppDbContext db, IClock clock, IFileStorageService storage)
     {
         _db = db;
         _clock = clock;
+        _storage = storage;
     }
 
     public async Task<MerchantDto> CreateAsync(
@@ -44,7 +47,7 @@ public sealed class MerchantService
             Slug = slug,
             Name = request.Name.Trim(),
             DefaultLanguage = request.DefaultLanguage ?? "fa",
-            Currency = request.Currency ?? "IRR",
+            Currency = request.Currency ?? ShopCurrencies.Default,
             IsActive = true,
             CreatedAt = now,
             UpdatedAt = now,
@@ -70,22 +73,29 @@ public sealed class MerchantService
             tenant.DefaultLanguage,
             tenant.Currency,
             tenant.IsActive,
-            MemberRole.MerchantOwner.ToString());
+            MemberRole.MerchantOwner.ToString(),
+            LogoUrl: null,
+            DefaultProductImageUrl: null);
     }
 
     public async Task<IReadOnlyList<MerchantDto>> GetMineAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        return await _db.TenantMembers
+        var rows = await _db.TenantMembers
             .IgnoreQueryFilters()
+            .AsNoTracking()
             .Where(m => m.UserId == userId)
             .Join(
-                _db.Tenants.IgnoreQueryFilters(),
+                _db.Tenants.IgnoreQueryFilters().AsNoTracking(),
                 m => m.TenantId,
                 t => t.Id,
                 (m, t) => new { Member = m, Tenant = t })
             .OrderBy(x => x.Tenant.Name)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return rows
             .Select(x => new MerchantDto(
                 x.Tenant.Id,
                 x.Tenant.Slug,
@@ -93,8 +103,12 @@ public sealed class MerchantService
                 x.Tenant.DefaultLanguage,
                 x.Tenant.Currency,
                 x.Tenant.IsActive,
-                x.Member.Role.ToString()))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+                x.Member.Role.ToString(),
+                ToPublicUrl(x.Tenant.LogoStoragePath),
+                ToPublicUrl(x.Tenant.DefaultProductImageStoragePath)))
+            .ToList();
     }
+
+    private string? ToPublicUrl(string? storagePath) =>
+        string.IsNullOrWhiteSpace(storagePath) ? null : _storage.GetPublicUrl(storagePath);
 }

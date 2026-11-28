@@ -8,11 +8,17 @@ import {
 import {
   clearSession,
   getSession,
+  patchActiveTenantInSession,
   setSession,
   type StoredSession,
 } from '@/shared/api/session';
+import {
+  hasExplicitLanguagePreference,
+  normalizeLanguage,
+  setAppLanguage,
+} from '@/shared/lib/i18n';
 import type { TelegramEnvironment } from '@/shared/lib/telegram';
-import { AuthContext, type AuthStatus } from './auth-context';
+import { AuthContext, type ActiveTenantPatch, type AuthStatus } from './auth-context';
 
 export function AuthProvider({
   telegram,
@@ -101,6 +107,13 @@ export function AuthProvider({
     [queryClient],
   );
 
+  const updateActiveTenant = useCallback((patch: ActiveTenantPatch) => {
+    const updated = patchActiveTenantInSession(patch);
+    if (updated) {
+      setSessionState(updated);
+    }
+  }, []);
+
   const signOut = useCallback(() => {
     clearSession();
     setSessionState(null);
@@ -108,6 +121,12 @@ export function AuthProvider({
     setErrorMessage(null);
     queryClient.clear();
   }, [queryClient]);
+
+  useEffect(() => {
+    if (!hasExplicitLanguagePreference() && telegram.userLanguageCode) {
+      setAppLanguage(normalizeLanguage(telegram.userLanguageCode), { explicit: false });
+    }
+  }, [telegram.userLanguageCode]);
 
   useEffect(() => {
     registerAuthHandlers({
@@ -149,9 +168,19 @@ export function AuthProvider({
       signInWithInitData,
       switchTenant,
       refreshSessionAfterShopCreated: switchTenant,
+      updateActiveTenant,
       signOut,
     }),
-    [status, session, telegram, errorMessage, signInWithInitData, switchTenant, signOut],
+    [
+      status,
+      session,
+      telegram,
+      errorMessage,
+      signInWithInitData,
+      switchTenant,
+      updateActiveTenant,
+      signOut,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

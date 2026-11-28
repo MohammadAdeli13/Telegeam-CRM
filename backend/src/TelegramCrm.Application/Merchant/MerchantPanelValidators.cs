@@ -1,7 +1,72 @@
 using System.Text.Json;
 using FluentValidation;
+using TelegramCrm.Application.Common;
 
 namespace TelegramCrm.Application.Merchant;
+
+/// <summary>Validates <c>PATCH /merchant/shop</c>.</summary>
+public sealed class UpdateMerchantShopRequestValidator : AbstractValidator<UpdateMerchantShopRequest>
+{
+    public UpdateMerchantShopRequestValidator()
+    {
+        RuleFor(x => x.Name)
+            .NotEmpty()
+            .MaximumLength(120)
+            .When(x => x.Name is not null);
+
+        RuleFor(x => x.DefaultLanguage)
+            .Must(v => v is "fa" or "en")
+            .WithMessage("DefaultLanguage must be 'fa' or 'en'.")
+            .When(x => x.DefaultLanguage is not null);
+
+        RuleFor(x => x.Currency)
+            .Must(ShopCurrencies.IsSupported)
+            .WithMessage("Currency must be one of: IRT, IRR, USD, EUR.")
+            .When(x => x.Currency is not null);
+
+        RuleFor(x => x.PaymentExpiryMinutes)
+            .InclusiveBetween(5, 10080)
+            .WithMessage("PaymentExpiryMinutes must be between 5 minutes and 7 days (10080).")
+            .When(x => x.PaymentExpiryMinutes.HasValue);
+
+        RuleFor(x => x.CardNumber)
+            .MaximumLength(32)
+            .Matches(@"^[0-9\-\s]{12,25}$")
+            .WithMessage("CardNumber must contain 12 to 25 digits, spaces, or hyphens.")
+            .When(x => !string.IsNullOrWhiteSpace(x.CardNumber));
+
+        RuleFor(x => x.CardHolderName).MaximumLength(120);
+        RuleFor(x => x.BankName).MaximumLength(80);
+    }
+}
+
+/// <summary>Validates <c>POST /merchant/shipping-methods</c>.</summary>
+public sealed class CreateShippingMethodRequestValidator : AbstractValidator<CreateShippingMethodRequest>
+{
+    public CreateShippingMethodRequestValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(120);
+        RuleFor(x => x.Description).MaximumLength(500);
+        RuleFor(x => x.Price).GreaterThanOrEqualTo(0m);
+        RuleFor(x => x.FreeAboveAmount).GreaterThanOrEqualTo(0m).When(x => x.FreeAboveAmount.HasValue);
+        RuleFor(x => x.EstimatedDaysText).MaximumLength(80);
+        RuleFor(x => x.SortOrder).GreaterThanOrEqualTo(0).When(x => x.SortOrder.HasValue);
+    }
+}
+
+/// <summary>Validates <c>PATCH /merchant/shipping-methods/{id}</c>.</summary>
+public sealed class UpdateShippingMethodRequestValidator : AbstractValidator<UpdateShippingMethodRequest>
+{
+    public UpdateShippingMethodRequestValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(120).When(x => x.Name is not null);
+        RuleFor(x => x.Description).MaximumLength(500);
+        RuleFor(x => x.Price).GreaterThanOrEqualTo(0m).When(x => x.Price.HasValue);
+        RuleFor(x => x.FreeAboveAmount).GreaterThanOrEqualTo(0m).When(x => x.FreeAboveAmount.HasValue);
+        RuleFor(x => x.EstimatedDaysText).MaximumLength(80);
+        RuleFor(x => x.SortOrder).GreaterThanOrEqualTo(0).When(x => x.SortOrder.HasValue);
+    }
+}
 
 /// <summary>Validates <c>POST /merchant/categories</c> (contract v1.2 §4.3).</summary>
 public sealed class CreateCategoryRequestValidator : AbstractValidator<CreateCategoryRequest>
@@ -90,6 +155,11 @@ public sealed class CreateCustomerRequestValidator : AbstractValidator<CreateCus
     public CreateCustomerRequestValidator()
     {
         RuleFor(x => x.TelegramUserId).GreaterThan(0);
+        RuleFor(x => x.TelegramUsername)
+            .MaximumLength(64)
+            .Must(TelegramUsernameHelper.IsValid)
+            .WithMessage("TelegramUsername must be 4-32 characters starting with a letter (letters, digits, underscore).")
+            .When(x => !string.IsNullOrWhiteSpace(x.TelegramUsername));
         RuleFor(x => x.DisplayName).MaximumLength(200);
         RuleFor(x => x.Phone)
             .MaximumLength(20)
@@ -105,6 +175,11 @@ public sealed class UpdateCustomerRequestValidator : AbstractValidator<UpdateCus
 {
     public UpdateCustomerRequestValidator()
     {
+        RuleFor(x => x.TelegramUsername)
+            .MaximumLength(64)
+            .Must(TelegramUsernameHelper.IsValid)
+            .WithMessage("TelegramUsername must be 4-32 characters starting with a letter (letters, digits, underscore).")
+            .When(x => !string.IsNullOrWhiteSpace(x.TelegramUsername));
         RuleFor(x => x.DisplayName).MaximumLength(200);
         RuleFor(x => x.Phone)
             .MaximumLength(20)

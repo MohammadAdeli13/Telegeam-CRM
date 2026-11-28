@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { clearSession, getAccessToken, getSession, setSession } from '@/shared/api/session';
+import {
+  clearSession,
+  getAccessToken,
+  getSession,
+  patchActiveTenantInSession,
+  setSession,
+} from '@/shared/api/session';
 import { extractShopSlugFromStartParam } from '@/shared/lib/telegram';
 
 describe('session storage policy (Contract v1.2 §5.3)', () => {
@@ -10,17 +16,47 @@ describe('session storage policy (Contract v1.2 §5.3)', () => {
       user: {
         id: '00000000-0000-0000-0000-000000000001',
         telegramUserId: 123456,
+        username: 'amin_dev',
         firstName: 'Amin',
         lastName: null,
         languageCode: 'fa',
       },
-      tenants: [],
-      activeTenant: null,
+      tenants: [
+        {
+          id: '00000000-0000-0000-0000-000000000010',
+          slug: 'noor-gallery',
+          name: 'گالری نور',
+          role: 'MerchantOwner',
+          defaultLanguage: 'fa',
+          currency: 'IRT',
+          logoUrl: null,
+          defaultProductImageUrl: null,
+        },
+      ],
+      activeTenant: {
+        id: '00000000-0000-0000-0000-000000000010',
+        slug: 'noor-gallery',
+        name: 'گالری نور',
+        role: 'MerchantOwner',
+        defaultLanguage: 'fa',
+        currency: 'IRT',
+        logoUrl: null,
+        defaultProductImageUrl: null,
+      },
     });
 
     expect(getAccessToken()).toBe('jwt-test-token');
-    expect(getSession()?.user.firstName).toBe('Amin');
+    expect(getSession()?.user.username).toBe('amin_dev');
     expect(window.sessionStorage.length).toBe(1);
+    expect(window.localStorage.length).toBe(0);
+
+    const patched = patchActiveTenantInSession({
+      currency: 'USD',
+      logoUrl: '/files/logo.png',
+    });
+    expect(patched?.activeTenant?.currency).toBe('USD');
+    expect(patched?.activeTenant?.logoUrl).toBe('/files/logo.png');
+    expect(patched?.tenants[0]?.currency).toBe('USD');
     expect(window.localStorage.length).toBe(0);
 
     clearSession();

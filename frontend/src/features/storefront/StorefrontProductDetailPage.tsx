@@ -1,12 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, Check, Minus, Package, Plus, ShoppingCart } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Minus,
+  Package,
+  Plus,
+  Share2,
+  ShoppingCart,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useOutletContext, useParams } from 'react-router';
 import { apiClient } from '@/shared/api/client';
 import { cn } from '@/shared/lib/cn';
-import { formatMoney, toNumber } from '@/shared/lib/format';
+import { formatMoney, formatNumber, toNumber } from '@/shared/lib/format';
 import { getDirection, normalizeLanguage } from '@/shared/lib/i18n';
+import { openTelegramUrl, triggerHaptic } from '@/shared/lib/telegram';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card } from '@/shared/ui/card';
@@ -59,16 +69,16 @@ export function StorefrontProductDetailPage() {
   const product = productQuery.data;
   if (!product) {
     return (
-      <div className="space-y-4">
+      <div className="mx-auto max-w-lg py-6">
         <ErrorState
           title={t('storefront.productNotFoundTitle')}
           message={t('storefront.productNotFoundDesc')}
+          action={
+            <Button asChild variant="outline">
+              <Link to={`/s/${shopSlug}`}>{t('storefront.backToCatalog')}</Link>
+            </Button>
+          }
         />
-        <div className="flex justify-center">
-          <Button asChild variant="outline">
-            <Link to={`/s/${shopSlug}`}>{t('storefront.backToCatalog')}</Link>
-          </Button>
-        </div>
       </div>
     );
   }
@@ -79,12 +89,14 @@ export function StorefrontProductDetailPage() {
   const inCartQty = getQuantity(product.id);
   const remainingAddable = Math.max(0, stock - inCartQty);
   const activeImage = product.images[selectedImageIdx] ?? product.images[0] ?? null;
+  const displayUrl = activeImage?.url ?? shop.defaultProductImageUrl ?? null;
 
   const handleAdd = () => {
     if (remainingAddable <= 0) {
       return;
     }
     const primaryImg = product.images.find((i) => i.isPrimary) ?? product.images[0] ?? null;
+    triggerHaptic('success');
     addItem(
       {
         productId: product.id,
@@ -92,7 +104,7 @@ export function StorefrontProductDetailPage() {
         nameEn: product.nameEn,
         unitPrice: price,
         stock,
-        imageUrl: primaryImg?.url ?? null,
+        imageUrl: primaryImg?.url ?? shop.defaultProductImageUrl ?? null,
       },
       Math.min(quantity, remainingAddable),
     );
@@ -101,41 +113,62 @@ export function StorefrontProductDetailPage() {
     window.setTimeout(() => setJustAdded(false), 1800);
   };
 
-  return (
-    <div className="space-y-4">
-      <Button asChild variant="ghost" size="sm" className="px-2">
-        <Link to={`/s/${shopSlug}`}>
-          <BackIcon className="size-4" aria-hidden="true" />
-          <span>{t('storefront.backToCatalog')}</span>
-        </Link>
-      </Button>
+  const handleShare = () => {
+    triggerHaptic('light');
+    const productUrl = `${window.location.origin}/s/${shopSlug}/products/${product.id}`;
+    const shareText = `${title} — ${formatMoney(price, shop.currency, lang)}`;
+    const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(productUrl)}&text=${encodeURIComponent(shareText)}`;
+    openTelegramUrl(telegramShareUrl);
+  };
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {/* Image gallery */}
+  return (
+    <div className="mx-auto max-w-4xl space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <Button asChild variant="ghost" size="sm" className="px-2">
+          <Link to={`/s/${shopSlug}`}>
+            <BackIcon className="size-4" aria-hidden="true" />
+            <span>{t('storefront.backToCatalog')}</span>
+          </Link>
+        </Button>
+
+        <Button type="button" variant="outline" size="sm" onClick={handleShare}>
+          <Share2 className="size-4" aria-hidden="true" />
+          <span>{t('storefront.shareProduct')}</span>
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Compact image gallery on mobile so CTA stays above the fold */}
         <div className="space-y-2.5">
           <Card className="overflow-hidden p-0">
-            <div className="flex aspect-square w-full items-center justify-center bg-surface-elevated">
-              {activeImage ? (
+            <div className="flex aspect-[4/3] max-h-72 w-full items-center justify-center bg-surface-elevated md:aspect-square md:max-h-none">
+              {displayUrl ? (
                 <img
-                  src={activeImage.url}
-                  alt={activeImage.altText ?? title}
+                  src={displayUrl}
+                  alt={activeImage?.altText ?? title}
                   className="size-full object-cover"
                 />
               ) : (
-                <Package className="size-12 text-muted-foreground" aria-hidden="true" />
+                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                  <Package className="size-10 opacity-60" aria-hidden="true" />
+                  <span className="text-xs opacity-70">{t('storefront.noImagePlaceholder')}</span>
+                </div>
               )}
             </div>
           </Card>
 
           {product.images.length > 1 ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="no-scrollbar flex flex-nowrap gap-2 overflow-x-auto pb-1">
               {product.images.map((img, idx) => (
                 <button
                   key={img.id}
                   type="button"
-                  onClick={() => setSelectedImageIdx(idx)}
+                  onClick={() => {
+                    triggerHaptic('selection');
+                    setSelectedImageIdx(idx);
+                  }}
                   className={cn(
-                    'size-14 cursor-pointer overflow-hidden rounded-lg border-2 bg-surface-elevated transition-colors',
+                    'size-14 shrink-0 cursor-pointer overflow-hidden rounded-lg border-2 bg-surface-elevated transition-colors',
                     idx === selectedImageIdx ? 'border-primary' : 'border-border',
                   )}
                 >
@@ -164,11 +197,13 @@ export function StorefrontProductDetailPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={stock > 0 ? 'success' : 'destructive'}>
                 {stock > 0
-                  ? t('storefront.inStock', { count: stock })
+                  ? t('storefront.inStock', { count: formatNumber(stock, lang) })
                   : t('storefront.outOfStock')}
               </Badge>
               {inCartQty > 0 ? (
-                <Badge variant="default">{t('storefront.inCart', { count: inCartQty })}</Badge>
+                <Badge variant="default">
+                  {t('storefront.inCart', { count: formatNumber(inCartQty, lang) })}
+                </Badge>
               ) : null}
             </div>
 
@@ -189,20 +224,22 @@ export function StorefrontProductDetailPage() {
                   <span className="text-sm font-medium text-foreground">
                     {t('storefront.quantityLabel')}
                   </span>
-                  <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-1">
+                  <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       aria-label={t('storefront.decreaseQty')}
                       disabled={quantity <= 1}
-                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      className="size-9"
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setQuantity((q) => Math.max(1, q - 1));
+                      }}
                     >
                       <Minus className="size-4" aria-hidden="true" />
                     </Button>
                     <span className="tabular-nums min-w-8 text-center text-sm font-bold text-foreground">
-                      {quantity}
+                      {formatNumber(quantity, lang)}
                     </span>
                     <Button
                       type="button"
@@ -210,8 +247,10 @@ export function StorefrontProductDetailPage() {
                       size="icon"
                       aria-label={t('storefront.increaseQty')}
                       disabled={quantity >= remainingAddable}
-                      onClick={() => setQuantity((q) => Math.min(remainingAddable, q + 1))}
-                      className="size-9"
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setQuantity((q) => Math.min(remainingAddable, q + 1));
+                      }}
                     >
                       <Plus className="size-4" aria-hidden="true" />
                     </Button>
@@ -232,6 +271,10 @@ export function StorefrontProductDetailPage() {
                   )}
                 </Button>
               </>
+            ) : stock === 0 ? (
+              <Button type="button" variant="secondary" disabled className="w-full">
+                {t('storefront.outOfStockButton')}
+              </Button>
             ) : null}
 
             {inCartQty > 0 ? (
