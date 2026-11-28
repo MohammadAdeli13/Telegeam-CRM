@@ -13,25 +13,11 @@ namespace TelegramCrm.IntegrationTests.Support;
 
 /// <summary>
 /// Boots the real API host with the persistence layer swapped for a test database.
-/// <para>
-/// When <c>TEST_POSTGRES_CONNECTION_STRING</c> is set the suite runs against a real
-/// PostgreSQL server: each factory instance owns a private database, migrations are applied
-/// with <c>MigrateAsync()</c>, and <see cref="ResetAsync"/> drops and recreates the
-/// <c>public</c> schema so tests never observe each other's rows. This is the mode CI uses,
-/// and the only mode that exercises the real Npgsql provider (partial indexes, <c>xmin</c>
-/// concurrency, <c>ExecuteUpdate</c>, transactions).
-/// </para>
-/// <para>
-/// When the variable is unset — a local sandbox with no PostgreSQL — the factory falls back
-/// to an isolated in-memory database so the endpoint pipeline can still be exercised.
-/// </para>
 /// </summary>
 public sealed class CrmApiFactory : WebApplicationFactory<Program>
 {
-    /// <summary>Environment variable that switches the suite onto real PostgreSQL.</summary>
     public const string PostgresConnectionStringVariable = "TEST_POSTGRES_CONNECTION_STRING";
 
-    /// <summary>Test webhook secret configured on the test host.</summary>
     public const string WebhookSecret = "test-webhook-secret-value-12345";
 
     private readonly string _databaseName = $"crm-tests-{Guid.NewGuid()}";
@@ -43,10 +29,8 @@ public sealed class CrmApiFactory : WebApplicationFactory<Program>
         _postgresConnectionString = Environment.GetEnvironmentVariable(PostgresConnectionStringVariable);
     }
 
-    /// <summary>True when the suite is running against real PostgreSQL.</summary>
     public bool UsesPostgres => !string.IsNullOrWhiteSpace(_postgresConnectionString);
 
-    /// <summary>In-memory spy capturing outbound Telegram messages dispatched by OutboxProcessor.</summary>
     public FakeTelegramBotSender TelegramSender { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -67,6 +51,7 @@ public sealed class CrmApiFactory : WebApplicationFactory<Program>
                 ["TELEGRAM_WEBHOOK_SECRET"] = WebhookSecret,
                 ["Telegram:MiniAppBaseUrl"] = "https://miniapp.test.local",
                 ["Telegram:EnableOutboxWorker"] = "false",
+                ["Orders:EnableExpiryWorker"] = "false",
                 ["FileStorage:RootPath"] = Path.Combine(Path.GetTempPath(), "crm-test-storage"),
                 ["FileStorage:PublicBaseUrl"] = "/files",
             });
@@ -119,11 +104,6 @@ public sealed class CrmApiFactory : WebApplicationFactory<Program>
         return host;
     }
 
-    /// <summary>
-    /// Returns the database to a pristine state: for PostgreSQL the <c>public</c> schema is
-    /// dropped and re-migrated, for the in-memory fallback the store is deleted and recreated.
-    /// Call it at the start of a test that must not see rows written by an earlier one.
-    /// </summary>
     public async Task ResetAsync()
     {
         using var scope = Services.CreateScope();
@@ -166,10 +146,6 @@ public sealed class CrmApiFactory : WebApplicationFactory<Program>
         }
     }
 
-    /// <summary>
-    /// Creates this factory's private database. It connects to the server's maintenance
-    /// database first, because the target database does not exist yet.
-    /// </summary>
     private void CreateDatabaseIfMissing()
     {
         var maintenance = new DbConnectionStringBuilder

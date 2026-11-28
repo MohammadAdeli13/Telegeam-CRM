@@ -2,7 +2,10 @@ import { X } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/shared/lib/cn';
+import { pushTelegramBackButton } from '@/shared/lib/telegram';
 import { Button } from './button';
+
+let openModalCount = 0;
 
 export function ModalDialog({
   open,
@@ -25,13 +28,27 @@ export function ModalDialog({
     if (!open) {
       return;
     }
+
+    openModalCount += 1;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    const removeBackHandler = pushTelegramBackButton(onClose);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      removeBackHandler();
+      openModalCount = Math.max(0, openModalCount - 1);
+      if (openModalCount === 0) {
+        document.body.style.overflow = prevOverflow;
+      }
+    };
   }, [open, onClose]);
 
   if (!open) {
@@ -52,10 +69,11 @@ export function ModalDialog({
     >
       <div
         className={cn(
-          'max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-surface p-4 text-foreground shadow-xl sm:max-w-lg sm:rounded-2xl sm:p-5',
+          'safe-bottom max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-surface p-4 pb-6 text-foreground shadow-xl sm:max-w-lg sm:rounded-2xl sm:p-5',
           className,
         )}
       >
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border sm:hidden" aria-hidden="true" />
         <div className="mb-4 flex items-start justify-between gap-3 border-b border-border pb-3">
           <div className="min-w-0">
             <h2 className="text-base font-bold text-foreground">{title}</h2>

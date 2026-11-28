@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { Minus, Package, Plus, Search, ShoppingCart } from 'lucide-react';
+import { Minus, Package, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useOutletContext, useParams } from 'react-router';
 import { apiClient } from '@/shared/api/client';
 import { cn } from '@/shared/lib/cn';
-import { formatMoney, toNumber } from '@/shared/lib/format';
+import { formatMoney, formatNumber, toNumber } from '@/shared/lib/format';
 import { normalizeLanguage } from '@/shared/lib/i18n';
+import { triggerHaptic } from '@/shared/lib/telegram';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card } from '@/shared/ui/card';
@@ -97,17 +98,22 @@ export function StorefrontCatalogPage() {
       </div>
 
       {categoriesQuery.data && categoriesQuery.data.length > 0 ? (
-        <div className="flex flex-wrap gap-2" role="tablist" aria-label={t('storefront.allCategories')}>
+        <div
+          className="no-scrollbar flex flex-nowrap gap-2 overflow-x-auto pb-1 lg:flex-wrap"
+          role="tablist"
+          aria-label={t('storefront.allCategories')}
+        >
           <button
             type="button"
             role="tab"
             aria-selected={!selectedCategoryId}
             onClick={() => {
+              triggerHaptic('selection');
               setSelectedCategoryId(undefined);
               setPage(1);
             }}
             className={cn(
-              'min-h-11 cursor-pointer rounded-full border px-3.5 text-xs font-medium transition-colors',
+              'min-h-11 shrink-0 cursor-pointer rounded-full border px-4 text-xs font-medium transition-colors',
               !selectedCategoryId
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-border bg-surface text-foreground hover:bg-surface-elevated',
@@ -125,11 +131,12 @@ export function StorefrontCatalogPage() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => {
+                  triggerHaptic('selection');
                   setSelectedCategoryId(category.id);
                   setPage(1);
                 }}
                 className={cn(
-                  'min-h-11 cursor-pointer rounded-full border px-3.5 text-xs font-medium transition-colors',
+                  'min-h-11 shrink-0 cursor-pointer rounded-full border px-4 text-xs font-medium transition-colors',
                   active
                     ? 'border-primary bg-primary text-primary-foreground'
                     : 'border-border bg-surface text-foreground hover:bg-surface-elevated',
@@ -147,32 +154,39 @@ export function StorefrontCatalogPage() {
       ) : productsQuery.isError ? (
         <ErrorState onRetry={() => void productsQuery.refetch()} />
       ) : !productsQuery.data || productsQuery.data.items.length === 0 ? (
-        <EmptyState description={t('storefront.emptyProducts')} />
+        <EmptyState
+          icon={<Package className="size-6" aria-hidden="true" />}
+          description={t('storefront.emptyProducts')}
+        />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {productsQuery.data.items.map((product) => {
               const title = lang === 'en' && product.nameEn ? product.nameEn : product.name;
               const stock = toNumber(product.stock);
               const price = toNumber(product.price);
               const inCartQty = getQuantity(product.id);
+              const displayImage = product.primaryImageUrl ?? shop.defaultProductImageUrl ?? null;
 
               return (
                 <Card key={product.id} className="flex flex-col overflow-hidden p-0">
                   <Link
                     to={`/s/${shopSlug}/products/${product.id}`}
-                    className="block aspect-square w-full bg-surface-elevated"
+                    className="block aspect-[4/3] w-full bg-surface-elevated sm:aspect-square"
                   >
-                    {product.primaryImageUrl ? (
+                    {displayImage ? (
                       <img
-                        src={product.primaryImageUrl}
+                        src={displayImage}
                         alt={title}
                         loading="lazy"
                         className="size-full object-cover transition-transform duration-200 hover:scale-[1.02]"
                       />
                     ) : (
-                      <div className="flex size-full items-center justify-center">
-                        <Package className="size-8 text-muted-foreground" aria-hidden="true" />
+                      <div className="flex size-full flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-surface-elevated to-surface text-muted-foreground">
+                        <Package className="size-7 opacity-60" aria-hidden="true" />
+                        <span className="text-[11px] opacity-70">
+                          {t('storefront.noImagePlaceholder')}
+                        </span>
                       </div>
                     )}
                   </Link>
@@ -190,26 +204,37 @@ export function StorefrontCatalogPage() {
                       </p>
                       <Badge variant={stock > 0 ? 'success' : 'destructive'}>
                         {stock > 0
-                          ? t('storefront.inStock', { count: stock })
+                          ? t('storefront.inStock', { count: formatNumber(stock, lang) })
                           : t('storefront.outOfStock')}
                       </Badge>
                     </div>
 
                     {stock > 0 ? (
                       inCartQty > 0 ? (
-                        <div className="flex items-center justify-between gap-1 rounded-lg border border-primary/40 bg-primary/10 p-1">
+                        <div className="flex items-center justify-between gap-1 rounded-lg border border-primary/40 bg-primary/10 p-0.5">
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            aria-label={t('storefront.decreaseQty')}
-                            onClick={() => setQuantity(product.id, inCartQty - 1)}
-                            className="size-9"
+                            aria-label={
+                              inCartQty === 1
+                                ? t('storefront.removeItem')
+                                : t('storefront.decreaseQty')
+                            }
+                            onClick={() => {
+                              triggerHaptic('light');
+                              setQuantity(product.id, inCartQty - 1);
+                            }}
+                            className={inCartQty === 1 ? 'text-destructive' : undefined}
                           >
-                            <Minus className="size-3.5" aria-hidden="true" />
+                            {inCartQty === 1 ? (
+                              <Trash2 className="size-4" aria-hidden="true" />
+                            ) : (
+                              <Minus className="size-4" aria-hidden="true" />
+                            )}
                           </Button>
-                          <span className="tabular-nums text-xs font-bold text-foreground">
-                            {inCartQty}
+                          <span className="tabular-nums text-sm font-bold text-foreground">
+                            {formatNumber(inCartQty, lang)}
                           </span>
                           <Button
                             type="button"
@@ -217,10 +242,12 @@ export function StorefrontCatalogPage() {
                             size="icon"
                             aria-label={t('storefront.increaseQty')}
                             disabled={inCartQty >= stock}
-                            onClick={() => setQuantity(product.id, inCartQty + 1)}
-                            className="size-9"
+                            onClick={() => {
+                              triggerHaptic('light');
+                              setQuantity(product.id, inCartQty + 1);
+                            }}
                           >
-                            <Plus className="size-3.5" aria-hidden="true" />
+                            <Plus className="size-4" aria-hidden="true" />
                           </Button>
                         </div>
                       ) : (
@@ -228,22 +255,27 @@ export function StorefrontCatalogPage() {
                           type="button"
                           size="sm"
                           className="w-full"
-                          onClick={() =>
+                          onClick={() => {
+                            triggerHaptic('light');
                             addItem({
                               productId: product.id,
                               name: product.name,
                               nameEn: product.nameEn,
                               unitPrice: price,
                               stock,
-                              imageUrl: product.primaryImageUrl,
-                            })
-                          }
+                              imageUrl: displayImage,
+                            });
+                          }}
                         >
-                          <ShoppingCart className="size-3.5" aria-hidden="true" />
+                          <ShoppingCart className="size-4" aria-hidden="true" />
                           <span>{t('storefront.addToCart')}</span>
                         </Button>
                       )
-                    ) : null}
+                    ) : (
+                      <Button type="button" size="sm" variant="secondary" disabled className="w-full">
+                        {t('storefront.outOfStockButton')}
+                      </Button>
+                    )}
                   </div>
                 </Card>
               );

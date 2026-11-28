@@ -101,3 +101,6 @@ desktop.ini
 *.swo
 *~
 .~*
+HANDOFF.md
+frontend/e2e/capture-ui-audit.mjs
+ui-audit-shots/

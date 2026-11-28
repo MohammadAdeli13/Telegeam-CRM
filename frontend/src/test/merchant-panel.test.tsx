@@ -3,13 +3,15 @@ import { describe, expect, it } from 'vitest';
 import {
   getNextOrderStatuses,
   isValidJsonText,
+  parseSettingDisplayValue,
+  serializeSettingValue,
   slugifyCategoryName,
 } from '@/features/merchant/merchant-state';
 import '@/shared/lib/i18n';
 import { setAppLanguage } from '@/shared/lib/i18n';
 import { OrderStatusBadge } from '@/shared/ui/status-badge';
 
-describe('P4a merchant state machine and helpers', () => {
+describe('merchant state machine and settings helpers', () => {
   it('enforces exact legal order status transitions matching backend domain', () => {
     expect(getNextOrderStatuses('Pending')).toEqual(['Confirmed', 'Cancelled']);
     expect(getNextOrderStatuses('Confirmed')).toEqual(['Preparing', 'Cancelled']);
@@ -26,6 +28,16 @@ describe('P4a merchant state machine and helpers', () => {
     expect(isValidJsonText('42')).toBe(true);
     expect(isValidJsonText('{broken')).toBe(false);
     expect(isValidJsonText('')).toBe(false);
+  });
+
+  it('parses and serializes human-friendly shop settings safely as JSON', () => {
+    expect(parseSettingDisplayValue('"@noor_support"')).toBe('@noor_support');
+    expect(parseSettingDisplayValue('true')).toBe('true');
+    expect(serializeSettingValue('@noor_support')).toBe('"@noor_support"');
+    expect(serializeSettingValue('{"a":1}', { preserveStructuredJson: true })).toBe('{"a":1}');
+    expect(serializeSettingValue('plain text', { preserveStructuredJson: true })).toBe(
+      '"plain text"',
+    );
   });
 
   it('slugifies category names cleanly', () => {

@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { StoredSession } from '@/shared/api/session';
+import type { StoredSession, TenantSummary } from '@/shared/api/session';
 import type { TelegramEnvironment } from '@/shared/lib/telegram';
 
 export type AuthStatus =
@@ -7,6 +7,13 @@ export type AuthStatus =
   | 'authenticated'
   | 'unauthenticated'
   | 'reopen_required';
+
+export type ActiveTenantPatch = Partial<
+  Pick<
+    TenantSummary,
+    'name' | 'defaultLanguage' | 'currency' | 'logoUrl' | 'defaultProductImageUrl'
+  >
+>;
 
 export interface AuthContextValue {
   status: AuthStatus;
@@ -16,6 +23,7 @@ export interface AuthContextValue {
   signInWithInitData: (rawInitData: string) => Promise<StoredSession | null>;
   switchTenant: (tenantId: string) => Promise<StoredSession | null>;
   refreshSessionAfterShopCreated: (tenantId: string) => Promise<StoredSession | null>;
+  updateActiveTenant: (patch: ActiveTenantPatch) => void;
   signOut: () => void;
 }
 

@@ -9,6 +9,8 @@ public class Customer : Entity, ITenantOwned
 
     public long TelegramUserId { get; set; }
 
+    public string? TelegramUsername { get; set; }
+
     public string? DisplayName { get; set; }
 
     public string? Phone { get; set; }
@@ -16,6 +18,8 @@ public class Customer : Entity, ITenantOwned
     public string? Notes { get; set; }
 
     public ICollection<CustomerTag> Tags { get; set; } = new List<CustomerTag>();
+
+    public ICollection<CustomerAddress> Addresses { get; set; } = new List<CustomerAddress>();
 
     public ICollection<Order> Orders { get; set; } = new List<Order>();
 }

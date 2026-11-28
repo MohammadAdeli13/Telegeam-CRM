@@ -12,6 +12,7 @@ const browserTelegramEnv = {
   initDataRaw: null,
   startParam: null,
   colorScheme: 'dark' as const,
+  userLanguageCode: null,
 };
 
 describe('App Shell i18n, RTL/LTR and Theme controls', () => {
