@@ -66,7 +66,7 @@ export function AuthProvider({
       setSession(nextSession);
       setSessionState(nextSession);
       setStatus('authenticated');
-      queryClient.clear();
+      void queryClient.invalidateQueries();
       return nextSession;
     },
     [queryClient],
@@ -95,7 +95,7 @@ export function AuthProvider({
       setSession(nextSession);
       setSessionState(nextSession);
       setStatus('authenticated');
-      queryClient.clear();
+      void queryClient.invalidateQueries();
       return nextSession;
     },
     [queryClient],
